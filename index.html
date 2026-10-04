@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Expense Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A1A17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #E7E5DD;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: #1A1A17;
+    padding: 40px 24px 80px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .book {
+    max-width: 1040px;
+    margin: 0 auto;
+    background: #FCFCF9;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+    overflow-x: hidden;
+  }
+
+  .brand {
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 22px 0 18px;
+    border-bottom: 1px dashed #C9C6B9;
+  }
+  .brand .name { font-size: 17px; font-weight: 600; letter-spacing: 3px; }
+  .brand .sub { font-size: 11px; color: #8A8778; margin-top: 5px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .page { padding: 26px 30px; }
+  .page-left { border-right: 1px dashed #C9C6B9; }
+
+  @media (max-width: 880px) {
+    .grid { grid-template-columns: 1fr; }
+    .page-left { border-right: none; border-bottom: 1px dashed #C9C6B9; }
+    body { padding: 24px 12px 60px; }
+    .cal-cell { min-height: 46px !important; }
+    .bal-row { flex-direction: column; gap: 18px; }
+  }
+
+  .section-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A8778; letter-spacing: 1px; margin-bottom: 12px; }
+
+  /* ---- Right page: summary ---- */
+  .total-block { text-align: center; padding: 4px 0 20px; border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; }
+  .total-label { font-size: 11px; color: #8A8778; font-family: 'IBM Plex Mono', monospace; }
+  .total-amount { font-family: 'IBM Plex Mono', monospace; font-size: 38px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .total-amount.over { color: #A63A2E; }
+  .compare-line { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A8778; margin-top: 8px; }
+  .compare-line .up { color: #A63A2E; }
+  .compare-line .down { color: #4F6A4A; }
+  .top-spender { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #5A5848; margin-top: 5px; }
+  .budget-setup { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 14px; }
+  .budget-setup input {
+    width: 90px !important; border: 1px solid #D6D3C6; background: #fff;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    text-align: right; padding: 7px 8px; color: #1A1A17;
+  }
+  .budget-setup input:focus { outline: none; border-color: #1A1A17; }
+
+  .btn-sm {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.5px;
+    padding: 8px 12px; background: #1A1A17; color: #FCFCF9; border: none; cursor: pointer; white-space: nowrap;
+  }
+  .btn-sm:active { background: #333; }
+  .btn-sm.ghost { background: transparent; color: #1A1A17; border: 1px solid #D6D3C6; }
+  .btn-icon {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    background: transparent; border: 1px solid #D6D3C6; color: #1A1A17;
+    width: 30px; height: 30px; cursor: pointer;
+  }
+
+  .budget-note { font-size: 10.5px; color: #8A8778; font-family: 'IBM Plex Mono', monospace; margin-top: 7px; min-height: 13px; }
+  .bar-track { height: 3px; background: #E7E5DD; margin-top: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #4F6A4A; transition: width 0.3s ease; }
+  .bar-fill.warn { background: #C97B3E; }
+  .bar-fill.over { background: #A63A2E; }
+
+  .stats-row { display: flex; border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; padding-bottom: 18px; }
+  .stat { flex: 1; text-align: center; padding: 0 4px; border-right: 1px dashed #C9C6B9; }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: #8A8778; letter-spacing: 0.5px; }
+  .stat-val { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .stat-val.positive { color: #4F6A4A; }
+  .stat-val.negative { color: #A63A2E; }
+
+  .income-net-row { margin-top: 16px; }
+
+  .entry-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .entry-tabs .tab-btn {
+    flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.5px;
+    padding: 9px 10px; background: transparent; color: #8A8778; border: 1px solid #D6D3C6; cursor: pointer;
+  }
+  .entry-tabs .tab-btn.active { background: #1A1A17; color: #FCFCF9; border-color: #1A1A17; }
+  .entry-tabs .tab-btn.income-active { background: #4F6A4A; border-color: #4F6A4A; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #5A5848; font-family: 'IBM Plex Mono', monospace; }
+  .checkbox-row input { width: auto; padding: 0; }
+  .checkbox-row label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+
+  .balances-block { border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; padding-bottom: 18px; }
+  .bal-row { display: flex; gap: 14px; }
+  .bal-item { flex: 1; min-width: 0; }
+  .bal-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; letter-spacing: 0.5px; }
+  .bal-amount { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .bal-amount.negative { color: #A63A2E; }
+  .bal-controls { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
+  .bal-controls select { flex: 1 1 100%; font-size: 11px; padding: 7px 6px; }
+  .bal-controls input {
+    flex: 1 1 70px; min-width: 0; border: 1px solid #D6D3C6; background: #fff;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-align: right; padding: 7px 6px; color: #1A1A17;
+  }
+  .bal-controls input:focus { outline: none; border-color: #1A1A17; }
+  .bal-controls .btn-sm { padding: 7px 8px; font-size: 9.5px; white-space: normal; flex: 1 1 auto; min-width: 0; text-align: center; }
+  .bal-hint { font-size: 9.5px; color: #8A8778; font-family: 'IBM Plex Mono', monospace; margin-top: 6px; }
+
+  .trend-block { padding-bottom: 18px; border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; }
+  .trend-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .trend-title { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #8A8778; }
+  .trend-range-toggle { display: flex; gap: 4px; }
+  .trend-range-toggle .chip { padding: 4px 8px; font-size: 9.5px; }
+  .trend-bars { display: flex; align-items: flex-end; gap: 8px; height: 54px; }
+  .trend-bars.dense { gap: 2px; }
+  .trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .trend-bar { width: 100%; background: #B08D57; min-height: 2px; }
+  .trend-bar.today { background: #1A1A17; }
+  .trend-bar.income-bar { background: #4F6A4A; }
+  .trend-day { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #8A8778; margin-top: 5px; }
+  .trend-bars.dense .trend-day { display: none; }
+
+  .recurring-block { border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; padding-bottom: 18px; }
+
+  .debts-block { border-bottom: 1px dashed #C9C6B9; margin-bottom: 18px; padding-bottom: 18px; }
+  .debts-summary { display: flex; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+  .debts-summary-item { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; letter-spacing: 0.5px; line-height: 1.9; }
+  .debts-summary-item b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .debt-form .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .debt-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #EEEDE6; font-size: 12px; flex-wrap: wrap; }
+  .debt-row:last-child { border-bottom: none; }
+  .debt-main { flex: 1; min-width: 140px; }
+  .debt-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; margin-top: 2px; }
+  .debt-amt { font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .debt-amt.owe { color: #A63A2E; }
+  .debt-amt.owed { color: #4F6A4A; }
+  .debt-actions { display: flex; gap: 5px; align-items: center; }
+  .debt-pay-input {
+    width: 74px !important; border: 1px solid #D6D3C6; background: #fff; font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; text-align: right; padding: 6px; color: #1A1A17;
+  }
+  .debt-pay-input:focus { outline: none; border-color: #1A1A17; }
+  .debts-empty { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A8778; }
+  .recurring-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EEEDE6; font-size: 12px; }
+  .recurring-row:last-child { border-bottom: none; }
+  .recurring-main { flex: 1; min-width: 0; }
+  .recurring-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; margin-top: 2px; }
+  .recurring-empty { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A8778; }
+
+  .breakdown { padding-bottom: 4px; }
+  .donut-wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  .donut-svg { flex-shrink: 0; }
+  .donut-legend { flex: 1; min-width: 160px; }
+  .cat-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+  .cat-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .cat-name { width: 110px; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #5A5848; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-amt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; width: 62px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .cat-limit { width: 56px !important; flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 5px; border: 1px solid #D6D3C6; text-align: right; }
+  .cat-limit:focus { outline: none; border-color: #1A1A17; }
+  .cat-amt.over { color: #A63A2E; font-weight: 600; }
+  .cat-limit.over { border-color: #A63A2E; color: #A63A2E; }
+  .cat-over-note { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: #A63A2E; margin: -6px 0 10px 18px; }
+  .donut-empty { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #8A8778; }
+
+  .actions-row { display: flex; gap: 10px; padding-top: 18px; margin-top: 4px; border-top: 1px dashed #C9C6B9; flex-wrap: wrap; }
+  .actions-row .btn-sm { flex: 1; }
+
+  .report-panel { display: none; padding-top: 18px; margin-top: 18px; border-top: 1px dashed #C9C6B9; }
+  .report-panel.show { display: block; }
+  .report-title { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 1px; margin-bottom: 14px; }
+  .report-section { margin-bottom: 16px; }
+  .report-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; margin-bottom: 8px; }
+  .report-line { font-size: 12.5px; margin-bottom: 5px; display: flex; justify-content: space-between; gap: 12px; }
+  .report-line b { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  /* ---- Left page: entries ---- */
+  .search-row { margin-bottom: 16px; }
+  .search-row input { width: 100%; font-family: 'IBM Plex Sans', sans-serif; font-size: 12.5px; padding: 9px 11px; border: 1px solid #D6D3C6; background: #fff; color: #1A1A17; }
+  .search-row input:focus { outline: none; border-color: #1A1A17; }
+
+  .form-block { padding-bottom: 18px; border-bottom: 1px dashed #C9C6B9; margin-bottom: 16px; }
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .form-row:last-child { margin-bottom: 0; }
+
+  input[type=text], input[type=number], input[type=date], select {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; padding: 9px 10px;
+    border: 1px solid #D6D3C6; background: #fff; color: #1A1A17; width: 100%;
+  }
+  input:focus, select:focus { outline: none; border-color: #1A1A17; }
+
+  .hint { font-size: 10.5px; color: #8A8778; font-family: 'IBM Plex Mono', monospace; margin-top: 8px; }
+  .err { font-size: 11px; color: #A63A2E; margin-top: 6px; font-family: 'IBM Plex Mono', monospace; display: none; }
+  .err.show { display: block; }
+
+  .filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .chip { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 6px 10px; border: 1px solid #D6D3C6; background: transparent; color: #8A8778; cursor: pointer; }
+  .chip.active { background: #1A1A17; color: #FCFCF9; border-color: #1A1A17; }
+
+  .items { max-height: 560px; overflow-y: auto; }
+  .item-row { display: flex; align-items: center; padding: 11px 2px; border-bottom: 1px solid #EEEDE6; gap: 10px; }
+  .item-main { flex: 1; min-width: 0; }
+  .item-desc { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #8A8778; margin-top: 2px; letter-spacing: 0.3px; }
+  .item-amount { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .item-actions { display: flex; gap: 2px; }
+  .icon-btn { background: none; border: none; color: #8A8778; font-size: 13px; cursor: pointer; padding: 6px 8px; font-family: 'IBM Plex Mono', monospace; }
+  .icon-btn:hover { color: #1A1A17; }
+  .icon-btn.danger:hover { color: #A63A2E; }
+  .edit-row { padding: 10px 2px; border-bottom: 1px solid #EEEDE6; background: #F6F5EF; }
+  .empty { text-align: center; padding: 40px 0; color: #8A8778; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+
+  .item-amount.inflow { color: #4F6A4A; }
+  .item-amount.transfer { color: #8A5A44; }
+  .item-amount.outflow { color: #A63A2E; }
+  .item-tag { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #FCFCF9; background: #8A8778; padding: 1px 5px; margin-left: 6px; display: inline-block; vertical-align: middle; }
+  .item-tag.inflow { background: #4F6A4A; }
+  .item-tag.transfer { background: #8A5A44; }
+  .item-tag.adjust { background: #6B6656; }
+  .item-tag.outflow { background: #A63A2E; }
+
+  /* ---- Calendar section ---- */
+  .cal-section { padding: 26px 30px; border-top: 1px dashed #C9C6B9; }
+  .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .cal-nav-left { display: flex; align-items: center; gap: 10px; }
+  .cal-month-label { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; min-width: 150px; }
+  .cal-weekday-budgets { margin-bottom: 18px; }
+  .cal-wb-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; letter-spacing: 1px; margin-bottom: 10px; }
+  .cal-wb-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .cal-wb-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .cal-wb-col label { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: #8A8778; }
+  .cal-wb-col input {
+    width: 58px !important; border: 1px solid #D6D3C6; background: #fff; font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; text-align: center; padding: 7px 4px; color: #1A1A17;
+  }
+  .cal-wb-col input:focus { outline: none; border-color: #1A1A17; }
+  .cal-wb-note { font-size: 10px; color: #8A8778; font-family: 'IBM Plex Mono', monospace; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-head { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; text-align: center; padding-bottom: 6px; }
+  .cal-cell {
+    min-height: 70px; border: 1px solid #EEEDE6; padding: 6px; cursor: pointer; position: relative;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .cal-cell.empty { border-color: transparent; cursor: default; }
+  .cal-cell[data-date]:hover { border-color: #B5B2A3; }
+  .cal-cell.selected { outline: 2px solid #1A1A17; outline-offset: -2px; }
+  .cal-cell.is-today .cal-date { text-decoration: underline; }
+  .cal-date { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #5A5848; }
+  .cal-amt { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; align-self: flex-end; }
+
+  .cal-legend { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+  .cal-legend-item { display: flex; align-items: center; gap: 5px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8A8778; }
+  .cal-legend-swatch { width: 12px; height: 12px; border: 1px solid #D6D3C6; }
+
+  .cal-stats { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .cal-stat-line { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5A5848; }
+  .cal-stat-line b { color: #1A1A17; }
+
+  .cal-day-detail { margin-top: 18px; padding-top: 16px; border-top: 1px dashed #C9C6B9; }
+  .cal-day-detail-title { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; margin-bottom: 10px; }
+  .cal-day-detail-empty { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #8A8778; }
+  .cal-day-total { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; margin-top: 8px; text-align: right; }
+
+  .footer-note { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #B5B2A3; padding: 16px 0 22px; letter-spacing: 1px; border-top: 1px dashed #C9C6B9; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1A1A17; color: #FCFCF9; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; padding: 11px 18px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 10;
+  }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast button { background: none; border: none; color: #E7E5DD; text-decoration: underline; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+
+  /* ---- Home day + polish ---- */
+  :focus-visible { outline: 2px solid #1A1A17; outline-offset: 2px; }
+  .btn-sm.home { background: hsl(205,45%,93%); color: #2F5F7A; border: 1px solid #9DBBCC; }
+  .btn-sm.home:active { background: hsl(205,45%,86%); }
+  .stat-val.warn { color: #C97B3E; }
+  .cal-cell.unlogged { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(138,135,120,0.16) 5px 6px); }
+  .cal-cell.is-today { box-shadow: inset 0 0 0 1px #1A1A17; }
+  .cal-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; align-self: flex-end; }
+  .cal-legend-swatch.unlogged { background-image: repeating-linear-gradient(135deg, transparent 0 3px, rgba(138,135,120,0.35) 3px 4px); }
+  .cal-day-actions { margin-top: 12px; }
+  .cal-day-note { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #8A8778; margin-top: 8px; }
+  .cal-stat-line b.warn { color: #C97B3E; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+  @media (max-width: 880px) {
+    input[type=text], input[type=number], input[type=date], select { font-size: 16px; }
+    .chip { padding: 8px 12px; }
+    .icon-btn { padding: 8px 10px; }
+  }
+
+  /* ---- v2 polish ---- */
+  body { background:#E9E6DC; padding:28px 16px 90px; }
+  .book { border-radius:16px; box-shadow:0 10px 40px rgba(26,26,23,.09); }
+  .page { padding:28px 32px; }
+  .brand { padding:26px 0 20px; }
+  .section-title { color:#6B6858; font-size:11.5px; }
+  .hint,.item-meta,.stat-label,.trend-day,.bal-hint,.budget-note,.debt-meta,.recurring-meta,.cal-wb-col label { color:#6B6858; }
+  .btn-sm { border-radius:8px; min-height:38px; font-size:11px; }
+  .btn-icon,.budget-setup input,.bal-controls input,.debt-pay-input,.cat-limit,.cal-wb-col input,.search-row input { border-radius:8px; }
+  .entry-tabs .tab-btn { border-radius:8px; min-height:40px; }
+  .chip { border-radius:999px; }
+  input[type=text],input[type=number],input[type=date],select { border-radius:8px; }
+  .item-row { padding:12px 4px; }
+  .total-amount { font-size:42px; }
+  .cal-cell { border-radius:8px; }
+  .toast { border-radius:10px; }
+  .goals { padding:26px 32px 28px; border-bottom:1px dashed #C9C6B9; background:#F6F8F4; }
+  .goal-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; }
+  .goals h2 { font-size:20px; font-weight:600; letter-spacing:-.2px; }
+  .goals h3 { font-size:14px; font-weight:600; margin-bottom:10px; }
+  .goal-saved { font-size:13px; color:#4A5A52; }
+  .goal-saved b { font-family:'IBM Plex Mono',monospace; font-size:15px; color:#24493E; }
+  .goal-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  .gcard { background:#fff; border:1px solid #DCE4DC; border-radius:12px; padding:14px 16px; }
+  .gcard .gn { font-size:12.5px; color:#4A5A52; }
+  .gcard .gb { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; margin:4px 0 8px; font-variant-numeric:tabular-nums; }
+  .gbar { height:6px; background:#E3EAE3; border-radius:99px; overflow:hidden; }
+  .gbar i { display:block; height:100%; background:#2F6B58; border-radius:99px; transition:width .3s; }
+  .gcard.met .gbar i { background:#24493E; }
+  .gcard .gs { font-size:11.5px; color:#5E6B63; margin-top:7px; }
+  .goal-cols { display:grid; grid-template-columns:1.3fr 1fr; gap:22px; }
+  .step { display:flex; gap:12px; width:100%; text-align:left; background:#fff; border:1px solid #DCE4DC; border-radius:10px; padding:11px 12px; margin-bottom:8px; cursor:pointer; font-family:inherit; color:#1A1A17; min-height:48px; }
+  .step small { display:block; font-size:11.5px; color:#5E6B63; margin-top:2px; }
+  .step b { font-weight:500; font-size:13.5px; }
+  .tick { flex:0 0 20px; height:20px; border:2px solid #9DB3A7; border-radius:6px; margin-top:1px; position:relative; }
+  .step.done { background:#EAF2EC; border-color:#B9D0C1; }
+  .step.done b { text-decoration:line-through; color:#5E6B63; }
+  .step.done .tick { background:#2F6B58; border-color:#2F6B58; }
+  .step.done .tick::after { content:''; position:absolute; left:5px; top:1px; width:5px; height:10px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .steps-foot { font-size:12px; color:#4A5A52; }
+  .sv-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#4A5A52; padding:3px 0; }
+  .goal-edit { margin-top:12px; font-size:12px; color:#4A5A52; }
+  .goal-edit summary { cursor:pointer; min-height:28px; }
+  .goal-edit .form-row { margin-top:8px; }
+  @media (max-width:880px) { .goals { padding:22px 18px; } .goal-cards,.goal-cols { grid-template-columns:1fr; } .page { padding:24px 18px; } }
+
+  /* ---- v3: section-by-section layout ---- */
+  [hidden] { display:none !important; }
+  .book { overflow:clip; }
+  .views { display:block; }
+  .view .page { max-width:760px; margin:0 auto; padding:28px 32px; }
+  .view .items { max-height:none; overflow:visible; }
+  .view .cal-section { max-width:860px; margin:0 auto; border-top:none; }
+  .view[data-view="goals"] { background:#F6F8F4; min-height:60vh; }
+  .view .goals { max-width:860px; margin:0 auto; border-bottom:none; background:transparent; }
+  #morePanel { display:block; border-top:none; margin-top:0; padding-top:0; }
+  .view.enter { animation:viewIn .22s ease-out; }
+  @keyframes viewIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .view.enter { animation:none; } }
+
+  .tabbar { position:sticky; top:0; z-index:30; display:flex; justify-content:center; gap:4px; padding:8px 12px; background:#FCFCF9; border-bottom:1px dashed #C9C6B9; }
+  .tab { position:relative; display:flex; align-items:center; gap:8px; padding:10px 16px; min-height:44px; background:transparent; border:none; border-radius:8px; cursor:pointer; color:#6B6858; font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; font-weight:500; }
+  .tab:hover { background:#F0EEE6; }
+  .tab.active { background:#1A1A17; color:#FCFCF9; }
+  .tab:focus-visible, .fab:focus-visible { outline:2px solid #2F6B58; outline-offset:2px; }
+  .tab-dot { position:absolute; top:7px; left:30px; width:9px; height:9px; border-radius:50%; background:#C97B3E; border:2px solid #FCFCF9; }
+
+  .fab { position:fixed; right:28px; bottom:28px; z-index:25; width:56px; height:56px; border-radius:50%; border:none; cursor:pointer; background:#1A1A17; color:#FCFCF9; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(26,26,23,.28); }
+  .fab:active { transform:scale(.95); }
+
+  .home-hero { text-align:center; padding:6px 0 22px; border-bottom:1px dashed #C9C6B9; margin-bottom:20px; }
+  .home-label { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#6B6858; letter-spacing:1px; }
+  .home-big { font-family:'IBM Plex Mono',monospace; font-size:48px; font-weight:600; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .home-big.over { color:#A63A2E; }
+  .home-sub { font-family:'IBM Plex Mono',monospace; font-size:12px; color:#6B6858; margin-top:8px; min-height:15px; }
+  .home-grid { display:grid; grid-template-columns:1fr 1fr; border:1px dashed #C9C6B9; border-radius:12px; overflow:hidden; }
+  .home-tile { padding:16px; border-right:1px dashed #C9C6B9; border-bottom:1px dashed #C9C6B9; }
+  .home-tile:nth-child(2n) { border-right:none; }
+  .home-tile:nth-last-child(-n+2) { border-bottom:none; }
+  .home-num { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; margin-top:6px; font-variant-numeric:tabular-nums; }
+  .home-num.positive { color:#4F6A4A; }
+  .home-num.negative { color:#A63A2E; }
+  .home-actions { display:flex; gap:10px; margin-top:20px; }
+  .home-notice { display:block; width:100%; margin-top:16px; padding:12px 14px; border-radius:10px; border:1px solid #E6C9A8; background:#FBF1E4; color:#7A4A1E; font-family:'IBM Plex Sans',sans-serif; font-size:12.5px; text-align:left; cursor:pointer; }
+  .backup-note { margin-bottom:16px; padding:12px 14px; border-radius:10px; border:1px solid #E6C9A8; background:#FBF1E4; color:#7A4A1E; font-size:12.5px; }
+
+  @media (max-width:880px) {
+    body { padding:16px 10px calc(104px + env(safe-area-inset-bottom)); }
+    .view .page { padding:22px 18px; }
+    .tabbar { position:fixed; top:auto; bottom:0; left:0; right:0; justify-content:space-around; gap:0; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); border-bottom:none; border-top:1px solid #D6D3C6; box-shadow:0 -4px 16px rgba(26,26,23,.07); }
+    .tab { flex:1; flex-direction:column; gap:3px; padding:6px 2px; min-height:54px; font-size:10.5px; }
+    .tab.active { background:#EAE7DC; color:#1A1A17; }
+    .tab-dot { left:calc(50% + 6px); top:5px; }
+    .fab { right:16px; bottom:calc(76px + env(safe-area-inset-bottom)); }
+    .toast { bottom:calc(84px + env(safe-area-inset-bottom)); max-width:calc(100vw - 32px); }
+    .home-big { font-size:42px; }
+  }
+
+  /* ---- v4: journal, category limits, need/want ---- */
+  .seg-row { align-items:center; gap:10px; }
+  .seg-label { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#6B6858; white-space:nowrap; }
+  .seg { display:flex; gap:6px; flex:1; }
+  .seg-btn { flex:1; min-height:38px; border:1px solid #D6D3C6; background:transparent; border-radius:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.5px; color:#6B6858; cursor:pointer; }
+  .seg-btn.on-need { background:#4F6A4A; border-color:#4F6A4A; color:#FCFCF9; }
+  .seg-btn.on-want { background:#C97B3E; border-color:#C97B3E; color:#FCFCF9; }
+  .flag-btn { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.4px; padding:2px 6px; margin-left:6px; border-radius:999px; border:1px dashed #B5B2A3; background:transparent; color:#6B6858; cursor:pointer; vertical-align:middle; }
+  .flag-btn.need { background:#4F6A4A; border:1px solid #4F6A4A; color:#FCFCF9; }
+  .flag-btn.want { background:#C97B3E; border:1px solid #C97B3E; color:#FCFCF9; }
+  .je-line { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#6B6858; margin-top:2px; overflow-wrap:anywhere; }
+
+  .limits-block, .nw-block { padding-bottom:18px; border-bottom:1px dashed #C9C6B9; margin-bottom:18px; }
+  .lim-row { margin-bottom:14px; }
+  .lim-top { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .lim-name { flex:1; font-size:12.5px; }
+  .lim-used { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#5A5848; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .lim-row .cat-limit { width:84px !important; }
+  .lim-msg { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#6B6858; margin-top:5px; }
+  .lim-msg.warn { color:#9A5A22; }
+  .lim-msg.over { color:#A63A2E; font-weight:600; }
+  .nw-bar { display:flex; height:10px; border-radius:999px; overflow:hidden; background:#E7E5DD; margin:4px 0 12px; }
+  .nw-bar i { display:block; height:100%; }
+  .nw-line { display:flex; justify-content:space-between; gap:12px; font-size:12.5px; margin-bottom:5px; }
+  .nw-line b { font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; font-weight:600; }
+  .nw-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+  .nw-empty, .nw-note { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#6B6858; line-height:1.6; }
+  .nw-note { margin-top:8px; }
+  .home-notice.limit { background:#FBE9E6; border-color:#E4B8B0; color:#8A2E22; }
+
+  .je-nav { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .je-help { font-size:12px; color:#5A5848; margin-bottom:16px; }
+  .je-help summary { cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#6B6858; }
+  .je-help div { margin-top:8px; line-height:1.6; }
+  .je-cols, .je-row { display:grid; grid-template-columns:1fr 88px 88px; gap:6px; }
+  .je-cols { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#6B6858; padding-bottom:6px; border-bottom:1px solid #D6D3C6; }
+  .je { padding:11px 0; border-bottom:1px solid #EEEDE6; }
+  .je-head { display:flex; align-items:baseline; gap:8px; font-size:12.5px; margin-bottom:5px; }
+  .je-date { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#6B6858; white-space:nowrap; }
+  .je-desc { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .je-row { font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:1px 0; }
+  .je-acct { overflow-wrap:anywhere; }
+  .je-acct.cr { padding-left:20px; }
+  .je-n { text-align:right; font-variant-numeric:tabular-nums; }
+  .je-sum { font-weight:600; border-top:1px solid #1A1A17; margin-top:6px; padding-top:6px; }
+  .tb-group { font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:.6px; color:#8A8778; margin:12px 0 3px; }
+  .tb-status { margin-top:10px; font-family:'IBM Plex Mono',monospace; font-size:11px; }
+  .tb-status.ok { color:#4F6A4A; }
+  .tb-status.bad { color:#A63A2E; }
+  @media (max-width:880px) { .je-cols, .je-row { grid-template-columns:1fr 76px 76px; } }
+  @media (max-width:420px) { .tab { font-size:10px; } }
+</style>
+</head>
+<body>
+
+<div class="book">
+  <div class="brand">
+    <div class="name">EXPENSE LEDGER</div>
+    <div class="sub" id="dateline"></div>
+  </div>
+
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button type="button" class="tab" data-view="home"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="tab-label">Home</span></button>
+    <button type="button" class="tab" data-view="add"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="tab-label">Entries</span></button>
+    <button type="button" class="tab" data-view="insights"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V11M12 21V4M19 21v-7"/></svg><span class="tab-label">Insights</span></button>
+    <button type="button" class="tab" data-view="calendar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="tab-label">Calendar</span></button>
+    <button type="button" class="tab" data-view="goals"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span class="tab-label">Goals</span></button>
+    <button type="button" class="tab" data-view="journal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg><span class="tab-label">Journal</span></button>
+    <button type="button" class="tab" data-view="accounts"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7l3-3h11M16 14h2"/></svg><span class="tab-label">Accounts</span><i class="tab-dot" id="acctDot" hidden></i></button>
+  </nav>
+  <main class="views">
+  <section class="view" data-view="home" id="view-home" hidden>
+    <div class="page">
+      <div class="home-hero">
+        <div class="home-label">SPENT TODAY</div>
+        <div class="home-big" id="homeToday">₱0</div>
+        <div class="home-sub" id="homeTodaySub"></div>
+        <div class="bar-track"><div class="bar-fill" id="homeBar" style="width:0%"></div></div>
+      </div>
+      <div class="home-grid">
+        <div class="home-tile"><div class="stat-label">THIS MONTH</div><div class="home-num" id="homeMonth">₱0</div></div>
+        <div class="home-tile"><div class="stat-label">NET (MO.)</div><div class="home-num" id="homeNet">₱0</div></div>
+        <div class="home-tile"><div class="stat-label">PETTY CASH</div><div class="home-num" id="homeCash">₱0</div></div>
+        <div class="home-tile"><div class="stat-label">STEPS TODAY</div><div class="home-num" id="homeSteps">0/0</div></div>
+      </div>
+      <div class="home-actions">
+        <button type="button" class="btn-sm" id="homeAddBtn" style="flex:2;">ADD EXPENSE</button>
+        <button type="button" class="btn-sm home" id="homeHomeDayBtn" style="flex:1;">HOME DAY</button>
+      </div>
+      <button type="button" class="home-notice limit" id="homeLimitNote" hidden></button>
+      <button type="button" class="home-notice" id="homeBackupNote" hidden></button>
+    </div>
+  </section>
+  <section class="view" data-view="add" id="view-add" hidden><div class="page">
+      <div class="section-title">TRANSACTIONS</div>
+
+      <div class="search-row"><input type="text" id="searchInput" placeholder="Search transactions..."></div>
+
+      <div class="form-block">
+        <div class="entry-tabs">
+          <button type="button" class="tab-btn active" id="tabExpenseBtn">EXPENSE</button>
+          <button type="button" class="tab-btn" id="tabIncomeBtn">INCOME</button>
+        </div>
+
+        <div id="expenseFields">
+          <div class="form-row">
+            <select id="categoryInput">
+              <option value="Food">Food</option>
+              <option value="Allowance">Allowance</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Bills">Bills</option>
+              <option value="Rent">Rent</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-row" id="otherRow" style="display:none;">
+            <input type="text" id="otherNote" placeholder="What kind of expense?" maxlength="60">
+          </div>
+          <div class="form-row">
+            <input type="text" id="noteInput" placeholder="Note (optional)" maxlength="80">
+          </div>
+          <div class="form-row">
+            <input type="number" id="amountInput" placeholder="Amount (₱)" min="0" step="0.01" inputmode="decimal">
+            <input type="date" id="dateInput">
+          </div>
+          <div class="form-row seg-row">
+            <span class="seg-label">Need or want?</span>
+            <div class="seg" id="flagSeg" role="group" aria-label="Need or want">
+              <button type="button" class="seg-btn" data-flag="need" aria-pressed="false">NEED</button>
+              <button type="button" class="seg-btn" data-flag="want" aria-pressed="false">WANT</button>
+            </div>
+          </div>
+          <div class="form-row checkbox-row">
+            <label><input type="checkbox" id="recurringCheckbox"> Repeats monthly</label>
+          </div>
+          <div class="form-row">
+            <button class="btn-sm" id="addExpenseBtn" style="flex:2;">ADD EXPENSE</button>
+            <button class="btn-sm home" id="homeDayBtn" type="button" style="flex:1;" title="Spent nothing on the date above">HOME DAY</button>
+          </div>
+          <div class="err" id="formErr">Enter an amount above ₱0. For Other, also say what the expense was.</div>
+          <div class="hint">Press Enter to add. Spent nothing on that date? Tap Home day.</div>
+        </div>
+
+        <div id="incomeFields" style="display:none;">
+          <div class="form-row">
+            <input type="text" id="incomeNoteInput" placeholder="Note (optional)" maxlength="80">
+          </div>
+          <div class="form-row">
+            <input type="number" id="incomeAmountInput" placeholder="Amount (₱)" min="0" step="0.01">
+            <input type="date" id="incomeDateInput">
+          </div>
+          <div class="form-row checkbox-row">
+            <label><input type="checkbox" id="incomeRecurringCheckbox"> Repeats monthly</label>
+          </div>
+          <div class="form-row">
+            <button class="btn-sm" id="addIncomeBtn" style="flex:1; background:#4F6A4A;">ADD INCOME</button>
+          </div>
+          <div class="err" id="incomeFormErr">Enter an amount above ₱0.</div>
+          <div class="hint">Press Enter, or tap Add, to record it.</div>
+        </div>
+      </div>
+
+      <div class="filters" id="filters"></div>
+      <div class="items" id="itemsList"></div>
+    </div></section>
+  <section class="view" data-view="insights" id="view-insights" hidden><div class="page">
+      <div class="section-title">SUMMARY</div>
+
+      <div class="total-block">
+        <div class="total-label">TOTAL SPENT — THIS MONTH</div>
+        <div class="total-amount" id="totalAmount">₱0.00</div>
+        <div class="compare-line" id="compareLine"></div>
+        <div class="top-spender" id="topSpender"></div>
+        <div class="budget-setup">
+          <input type="number" id="budgetInput" placeholder="budget" min="0" step="1">
+          <button class="btn-sm" id="setBudgetBtn">SET LIMIT</button>
+        </div>
+        <div class="budget-note" id="budgetNote"></div>
+        <div class="budget-note" id="crossCheckNote" style="color:#C97B3E;"></div>
+        <div class="bar-track"><div class="bar-fill" id="budgetBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="stats-row income-net-row">
+        <div class="stat"><div class="stat-label">INCOME (MO.)</div><div class="stat-val" id="statIncome">₱0</div></div>
+        <div class="stat"><div class="stat-label">NET (MO.)</div><div class="stat-val" id="statNet">₱0</div></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">OUT DAYS</div><div class="stat-val" id="statOut">0</div></div>
+        <div class="stat"><div class="stat-label">HOME DAYS</div><div class="stat-val" id="statHome">0</div></div>
+        <div class="stat"><div class="stat-label">NOT LOGGED</div><div class="stat-val" id="statUnlogged">0</div></div>
+        <div class="stat"><div class="stat-label">AVG / OUT DAY</div><div class="stat-val" id="statAvg">₱0</div></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">TODAY</div><div class="stat-val" id="statToday">₱0</div></div>
+        <div class="stat"><div class="stat-label">THIS WEEK</div><div class="stat-val" id="statWeek">₱0</div></div>
+        <div class="stat"><div class="stat-label">THIS MONTH</div><div class="stat-val" id="statMonth">₱0</div></div>
+      </div>
+
+      <div class="trend-block">
+        <div class="trend-title-row">
+          <div class="trend-title" id="trendTitle">LAST 7 DAYS</div>
+          <div class="trend-range-toggle" id="trendRangeToggle">
+            <button class="chip active" data-range="7">7D</button>
+            <button class="chip" data-range="30">30D</button>
+          </div>
+        </div>
+        <div class="trend-bars" id="trendBars"></div>
+      </div>
+
+      <div class="limits-block">
+        <div class="section-title">CATEGORY LIMITS &mdash; THIS MONTH</div>
+        <div id="limitRows"></div>
+        <div class="hint">Set a monthly cap per category. You get a warning at 80% and again when you pass the limit.</div>
+      </div>
+
+      <div class="nw-block">
+        <div class="section-title">NEEDS VS WANTS &mdash; THIS MONTH</div>
+        <div id="nwBody"></div>
+      </div>
+
+      <div class="breakdown" id="breakdown" style="display:none;">
+        <div class="section-title">BY CATEGORY — THIS MONTH</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" id="donutChart" viewBox="0 0 120 120" width="120" height="120"></svg>
+          <div class="donut-legend" id="catRows"></div>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn-sm ghost" id="reportBtn">MONTHLY REPORT</button>
+        <button class="btn-sm ghost" id="exportBtn">EXPORT CSV</button>
+        <button class="btn-sm ghost" id="pdfReportBtn">DOWNLOAD PDF</button>
+      </div>
+
+      <div class="report-panel" id="reportPanel"></div>
+    </div></section>
+  <section class="view" data-view="calendar" id="view-calendar" hidden><div class="cal-section">
+    <div class="section-title">CALENDAR</div>
+    <div class="cal-nav">
+      <div class="cal-nav-left">
+        <button class="btn-icon" id="calPrev" aria-label="Previous month">&larr;</button>
+        <div class="cal-month-label" id="calMonthLabel"></div>
+        <button class="btn-icon" id="calNext" aria-label="Next month">&rarr;</button>
+      </div>
+    </div>
+
+    <div class="cal-weekday-budgets">
+      <button class="btn-sm ghost" id="toggleWbBtn" type="button">EDIT WEEKDAY BUDGETS ▾</button>
+      <div id="calWbPanel" style="display:none; margin-top:12px;">
+        <div class="cal-wb-label">DAILY BUDGET BY WEEKDAY</div>
+        <div class="cal-wb-row" id="calWbRow"></div>
+        <button class="btn-sm" id="setWeekdayBudgetBtn">SET</button>
+      </div>
+    </div>
+
+    <div class="cal-grid" id="calHead"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+
+    <div class="cal-legend">
+      <div class="cal-legend-item"><div class="cal-legend-swatch unlogged"></div>Not logged</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:hsl(205,45%,89%);"></div>Home day</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:hsl(130,35%,88%);"></div>Well under</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:hsl(35,70%,78%);"></div>Near limit</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:hsl(6,65%,55%);"></div>Over limit</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:hsl(6,65%,30%);"></div>Way over</div>
+    </div>
+
+    <div class="cal-stats" id="calStats"></div>
+
+    <div class="cal-day-detail">
+      <div class="cal-day-detail-title" id="calDayTitle">Tap a day to see its entries</div>
+      <div id="calDayBody"></div>
+    </div>
+  </div></section>
+  <section class="view" data-view="goals" id="view-goals" hidden><section class="goals" id="goals" aria-label="Goals and daily steps">
+    <div class="goal-head"><h2>Your goals</h2><div class="goal-saved">Saved so far <b id="gSaved">₱0</b></div></div>
+    <div class="goal-cards" id="goalCards"></div>
+    <div class="goal-cols">
+      <div><h3>Today's steps</h3><div id="stepsList"></div><div class="steps-foot" id="stepsFoot"></div></div>
+      <div>
+        <h3>Set money aside</h3>
+        <div class="form-row"><input type="number" id="saveAmt" placeholder="30" min="0" step="0.01" inputmode="decimal"><button class="btn-sm" id="saveBtn" type="button">SET ASIDE</button></div>
+        <div class="hint">Moves the amount out of Petty Cash into savings.</div>
+        <div id="saveHistory" style="margin-top:10px;"></div>
+        <details class="goal-edit"><summary>Edit targets</summary>
+          <div class="form-row"><input type="number" id="gMonthly" placeholder="Monthly" min="0" aria-label="Monthly savings target"><input type="number" id="gBuffer" placeholder="Buffer" min="0" aria-label="Buffer target"></div>
+          <button class="btn-sm ghost" id="gSaveCfg" type="button">SAVE TARGETS</button>
+        </details>
+      </div>
+    </div>
+  </section></section>
+  <section class="view" data-view="journal" id="view-journal" hidden><div class="page">
+      <div class="section-title">JOURNAL</div>
+      <div class="je-nav">
+        <button class="btn-icon" id="jPrev" type="button" aria-label="Previous month">&larr;</button>
+        <div class="cal-month-label" id="jLabel"></div>
+        <button class="btn-icon" id="jNext" type="button" aria-label="Next month">&rarr;</button>
+        <button class="chip" id="jAllBtn" type="button">ALL TIME</button>
+      </div>
+      <details class="je-help"><summary>How to read this</summary>
+        <div>Debit (Dr) goes on the left and credit (Cr) on the right. Assets and expenses go up with a debit; liabilities, equity and income go up with a credit. Every entry has equal debits and credits.<br><br>
+        Entries are generated from your Entries, Bank/Cash, Savings and AP/AR records, so nothing is typed twice and past transactions are included. <b>Suspense</b> holds the other side of an AP/AR record, because adding a payable or receivable doesn't move cash. <b>Opening balances</b> appear only when your balances include things recorded before the app tracked them, such as cleared old months.</div>
+      </details>
+      <div class="je-cols"><span>Account</span><span class="je-n">Debit (&#8369;)</span><span class="je-n">Credit (&#8369;)</span></div>
+      <div id="jList"></div>
+      <div class="section-title" id="tbTitle" style="margin-top:28px;">TRIAL BALANCE</div>
+      <div class="je-cols"><span>Account</span><span class="je-n">Debit (&#8369;)</span><span class="je-n">Credit (&#8369;)</span></div>
+      <div id="tbBody"></div>
+    </div></section>
+  <section class="view" data-view="accounts" id="view-accounts" hidden><div class="page"><div class="section-title">ACCOUNTS</div><div class="backup-note" id="backupNote" style="display:none;"></div>
+      <div class="report-panel" id="morePanel">
+        <div class="balances-block" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+          <div class="section-title">BALANCES</div>
+          <div class="bal-row">
+            <div class="bal-item">
+              <div class="bal-label">BANK</div>
+              <div class="bal-amount" id="bankAmount">₱0.00</div>
+              <div class="bal-controls">
+                <select id="bankActionSelect">
+                  <option value="set">Set exact balance</option>
+                  <option value="deposit">Add to bank</option>
+                  <option value="withdraw">Move to cash</option>
+                </select>
+                <input type="number" id="bankAdjustInput" placeholder="amount" min="0" step="0.01">
+                <button class="btn-sm" id="bankGoBtn">GO</button>
+              </div>
+            </div>
+            <div class="bal-item">
+              <div class="bal-label">PETTY CASH</div>
+              <div class="bal-amount" id="cashAmount">₱0.00</div>
+              <div class="bal-controls">
+                <select id="cashActionSelect">
+                  <option value="set">Set exact balance</option>
+                  <option value="topup">Add cash (top up)</option>
+                </select>
+                <input type="number" id="cashAdjustInput" placeholder="amount" min="0" step="0.01">
+                <button class="btn-sm" id="cashGoBtn">GO</button>
+              </div>
+            </div>
+          </div>
+          <div class="bal-hint">Expenses auto-deduct from petty cash. Pick an action, enter an amount, tap GO.</div>
+        </div>
+
+        <div class="debts-block">
+          <div class="section-title">ACCOUNTS PAYABLE &amp; RECEIVABLE (AP/AR)</div>
+          <div class="debts-summary" id="debtsSummary"></div>
+          <div class="debt-form">
+            <div class="form-row">
+              <select id="debtDirectionSelect">
+                <option value="owe">AP — I owe them</option>
+                <option value="owed">AR — They owe me</option>
+              </select>
+              <input type="text" id="debtPersonInput" placeholder="Person / place" maxlength="40">
+            </div>
+            <div class="form-row">
+              <input type="number" id="debtAmountInput" placeholder="Amount (₱)" min="0" step="0.01">
+              <input type="date" id="debtDateInput">
+            </div>
+            <div class="form-row">
+              <input type="text" id="debtNoteInput" placeholder="Note (optional)" maxlength="60">
+            </div>
+            <div class="form-row">
+              <button class="btn-sm" id="addDebtBtn" style="flex:1;">ADD AP/AR ENTRY</button>
+            </div>
+            <div class="err" id="debtFormErr">Enter a person/place and a valid amount.</div>
+          </div>
+          <div id="debtsList" style="margin-top:12px;"></div>
+          <div class="bal-hint">Paying or receiving a payment adjusts Petty Cash automatically and logs it under Bank Activity. Deleting an entry just removes the record — no cash effect.</div>
+        </div>
+
+        <div class="recurring-block">
+          <div class="section-title">RECURRING ENTRIES</div>
+          <div id="recurringList"></div>
+          <div class="hint">Check "Repeats monthly" when adding an expense or income to create one. New occurrences are added automatically when a new month starts.</div>
+        </div>
+
+        <div class="actions-row" style="border-top:1px dashed #C9C6B9; padding-top:18px; margin-top:18px;">
+          <button class="btn-sm ghost" id="archiveBtn">CLEAR OLD MONTHS</button>
+        </div>
+        <div class="actions-row">
+          <button class="btn-sm ghost" id="exportJsonBtn">BACKUP (JSON)</button>
+          <button class="btn-sm ghost" id="importJsonBtn">RESTORE BACKUP</button>
+          <input type="file" id="importJsonFile" accept="application/json" style="display:none;">
+        </div>
+        <div class="hint" style="text-align:center;">Data lives only in this browser. Download a JSON backup periodically — it's the only way to move it or recover it.</div>
+      </div>
+    </div></section>
+  </main>
+
+  <div class="footer-note" id="itemCount">0 ITEMS · SAVED LOCALLY</div>
+</div>
+
+<button type="button" class="fab" id="fab" aria-label="Add expense"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastMsg">Deleted.</span>
+  <button id="undoBtn">UNDO</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const CATS = {
+  Food: '#B08D57', Allowance: '#A6577A', Groceries: '#4F6A4A', Transportation: '#C97B3E',
+  Bills: '#8A8778', Rent: '#8A5A44', Other: '#6B6656'
+};
+const CAT_LABELS = {
+  Food: 'Food', Allowance: 'Allowance', Groceries: 'Groceries', Transportation: 'Transportation',
+  Bills: 'Bills', Rent: 'Rent', Other: 'Other'
+};
+const PERSON_CATS = [];
+const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const TX_TYPE_LABELS = {
+  deposit: 'Deposit to Bank', withdraw: 'Withdraw: Bank → Cash', topup: 'Top Up: Petty Cash',
+  adjust_bank: 'Bank Reconciled', adjust_cash: 'Cash Reconciled',
+  debt_pay_out: 'AP Payment Made', debt_pay_in: 'AR Payment Received'
+};
+const TX_TYPE_TARGET = { deposit: 'Bank', withdraw: 'Bank → Cash', topup: 'Petty Cash', adjust_bank: 'Bank', adjust_cash: 'Petty Cash', debt_pay_out: 'Petty Cash', debt_pay_in: 'Petty Cash' };
+
+let expenses = [];
+let incomes = [];
+let recurringTemplates = [];
+let transactionsLog = [];
+let debts = [];
+let catLimits = {};
+let activeFilter = null;
+let activeTab = 'expense';
+let trendRange = 7;
+let budget = 0;
+let weekdayBudgets = [500, 850, 850, 850, 850, 600, 500]; // Sun..Sat — defaults from allowance + dinner + misc calc
+let bankBalance = 0;
+let pettyCash = 0;
+let searchTerm = '';
+let editingId = null;
+let editingIncomeId = null;
+let lastDeleted = null;
+let toastTimer = null;
+let calYear, calMonth;
+let selectedDay = null;
+let pendingSaves = 0;
+let homeDays = [];   // ISO dates with no spending (stayed home / someone else paid)
+
+const STORAGE_KEY = 'expenses:v2';
+const INCOME_KEY = 'incomes:v1';
+const RECURRING_KEY = 'recurringTemplates:v1';
+const TX_LOG_KEY = 'transactionsLog:v1';
+const DEBTS_KEY = 'debts:v1';
+const BUDGET_KEY = 'budget:v2';
+const LIMITS_KEY = 'catLimits:v1';
+const WEEKDAY_BUDGET_KEY = 'weekdayBudgets:v1';
+const BANK_BALANCE_KEY = 'bankBalance:v1';
+const PETTY_CASH_KEY = 'pettyCash:v1';
+const HOME_DAYS_KEY = 'homeDays:v1';
+const SAVINGS_KEY = 'savingsLog:v1', GOALCFG_KEY = 'goalCfg:v1', STEPS_KEY = 'steps:v1';
+let savingsLog = [];
+let newFlag = '';   // Need/Want tag for the expense being added
+let jY = new Date().getFullYear(), jM = new Date().getMonth(), jAll = false;   // Journal period
+let goalCfg = { monthly: 600, buffer: 1200 };
+let stepsDone = {};
+
+const r2 = n => Math.round(n * 100) / 100;
+
+// localStorage-backed shim, so app data persists offline in a normal browser
+window.storage = {
+  async get(key) {
+    const v = localStorage.getItem('ledger:' + key);
+    return v === null ? null : { value: v };
+  },
+  async set(key, value) {
+    localStorage.setItem('ledger:' + key, value);
+    return { value };
+  }
+};
+
+const $ = id => document.getElementById(id);
+
+function fmt(n) { return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtShort(n) { return '₱' + Math.round(n).toLocaleString('en-PH'); }
+
+function todayISO() {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off*60000).toISOString().slice(0,10);
+}
+function dISO(d) {
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off*60000).toISOString().slice(0,10);
+}
+
+function setDateline() {
+  const d = new Date();
+  $('dateline').textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+}
+
+async function loadData() {
+  try { const r = await window.storage.get(STORAGE_KEY); expenses = r ? JSON.parse(r.value) : []; }
+  catch (e) { expenses = []; }
+  try { const r = await window.storage.get(INCOME_KEY); incomes = r ? JSON.parse(r.value) : []; }
+  catch (e) { incomes = []; }
+  try { const r = await window.storage.get(RECURRING_KEY); recurringTemplates = r ? JSON.parse(r.value) : []; }
+  catch (e) { recurringTemplates = []; }
+  try { const r = await window.storage.get(TX_LOG_KEY); transactionsLog = r ? JSON.parse(r.value) : []; }
+  catch (e) { transactionsLog = []; }
+  try { const r = await window.storage.get(DEBTS_KEY); debts = r ? JSON.parse(r.value) : []; }
+  catch (e) { debts = []; }
+  try { const r = await window.storage.get(BUDGET_KEY); budget = r ? JSON.parse(r.value) : 0; }
+  catch (e) { budget = 0; }
+  try { const r = await window.storage.get(LIMITS_KEY); catLimits = r ? JSON.parse(r.value) : {}; }
+  catch (e) { catLimits = {}; }
+  try {
+    const r = await window.storage.get(WEEKDAY_BUDGET_KEY);
+    if (r) { const parsed = JSON.parse(r.value); if (Array.isArray(parsed) && parsed.length === 7) weekdayBudgets = parsed; }
+  } catch (e) { /* keep defaults */ }
+  try { const r = await window.storage.get(BANK_BALANCE_KEY); bankBalance = r ? JSON.parse(r.value) : 0; }
+  catch (e) { bankBalance = 0; }
+  try { const r = await window.storage.get(PETTY_CASH_KEY); pettyCash = r ? JSON.parse(r.value) : 0; }
+  catch (e) { pettyCash = 0; }
+  try { const r = await window.storage.get(HOME_DAYS_KEY); homeDays = r ? JSON.parse(r.value) : []; if (!Array.isArray(homeDays)) homeDays = []; }
+  catch (e) { homeDays = []; }
+  try { const r = await window.storage.get(SAVINGS_KEY); savingsLog = r ? JSON.parse(r.value) : []; if (!Array.isArray(savingsLog)) savingsLog = []; } catch (e) { savingsLog = []; }
+  try { const r = await window.storage.get(GOALCFG_KEY); if (r) goalCfg = Object.assign(goalCfg, JSON.parse(r.value)); } catch (e) { /* keep defaults */ }
+  try { const r = await window.storage.get(STEPS_KEY); stepsDone = r ? JSON.parse(r.value) : {}; } catch (e) { stepsDone = {}; }
+  $('budgetInput').value = budget || '';
+  renderWeekdayBudgetInputs();
+  $('dateInput').value = todayISO();
+  $('incomeDateInput').value = todayISO();
+  $('debtDateInput').value = todayISO();
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  selectedDay = todayISO();
+  toggleCategoryRows();
+  await applyDueRecurringTemplates();
+  render();
+}
+
+async function persist(key, value) {
+  pendingSaves++; updateFooterCount();
+  try { await window.storage.set(key, JSON.stringify(value)); }
+  catch (e) { showToast('Could not save. Browser storage may be full or blocked. Download a backup.', false); }
+  finally { pendingSaves--; updateFooterCount(); }
+}
+function saveExpenses() { return persist(STORAGE_KEY, expenses); }
+function saveIncomes() { return persist(INCOME_KEY, incomes); }
+function saveRecurringTemplates() { return persist(RECURRING_KEY, recurringTemplates); }
+function saveTransactionsLog() { return persist(TX_LOG_KEY, transactionsLog); }
+function saveDebts() { return persist(DEBTS_KEY, debts); }
+function saveBudget() { return persist(BUDGET_KEY, budget); }
+function saveLimits() { return persist(LIMITS_KEY, catLimits); }
+function saveWeekdayBudgets() { return persist(WEEKDAY_BUDGET_KEY, weekdayBudgets); }
+function saveBankBalance() { return persist(BANK_BALANCE_KEY, r2(bankBalance)); }
+function savePettyCash() { return persist(PETTY_CASH_KEY, r2(pettyCash)); }
+function saveHomeDays() { return persist(HOME_DAYS_KEY, homeDays); }
+
+window.addEventListener('beforeunload', (e) => {
+  if (pendingSaves > 0) {
+    // A write to storage is still in flight — ask the browser to hold off closing
+    // so the most recent entry doesn't get lost mid-save.
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
+function renderWeekdayBudgetInputs() {
+  $('calWbRow').innerHTML = WEEKDAYS.map((w, i) => `
+    <div class="cal-wb-col">
+      <label>${w}</label>
+      <input type="number" min="0" step="1" id="wb_${i}" value="${weekdayBudgets[i] || ''}" placeholder="0">
+    </div>
+  `).join('');
+}
+
+function toggleCategoryRows() {
+  const cat = $('categoryInput').value;
+  $('otherRow').style.display = cat === 'Other' ? 'flex' : 'none';
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  $('expenseFields').style.display = tab === 'expense' ? 'block' : 'none';
+  $('incomeFields').style.display = tab === 'income' ? 'block' : 'none';
+  $('tabExpenseBtn').classList.toggle('active', tab === 'expense');
+  $('tabIncomeBtn').classList.toggle('active', tab === 'income');
+  $('tabIncomeBtn').classList.toggle('income-active', tab === 'income');
+}
+
+function curMonthKeyStr() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+
+function clampDay(day, year, month0) {
+  const daysInMonth = new Date(year, month0 + 1, 0).getDate();
+  return Math.min(Math.max(1, day), daysInMonth);
+}
+
+async function applyDueRecurringTemplates() {
+  const now = new Date();
+  const curKey = curMonthKeyStr();
+  const todayDate = now.getDate();
+  let fired = false;
+  for (const t of recurringTemplates) {
+    if (!t.active) continue;
+    if (t.lastMonthKey === curKey) continue;
+    const day = clampDay(t.dayOfMonth, now.getFullYear(), now.getMonth());
+    // Don't post it before its actual day of the month arrives — otherwise cash
+    // gets deducted/credited days before the dated entry it belongs to.
+    if (todayDate < day) continue;
+    // Idempotency guard: if a prior run added the entry but a save afterwards
+    // failed silently (leaving lastMonthKey stale), don't add it a second time —
+    // just bring lastMonthKey back in sync instead.
+    const alreadyApplied = t.kind === 'expense'
+      ? expenses.some(e => e.recurringId === t.id && isInMonth(e.date, 0))
+      : incomes.some(i => i.recurringId === t.id && isInMonth(i.date, 0));
+    if (alreadyApplied) { t.lastMonthKey = curKey; fired = true; continue; }
+    const ds = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    if (t.kind === 'expense') {
+      expenses.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), category: t.category, subtype: t.subtype || '', note: t.note || '', amount: t.amount, flag: t.flag || '', date: ds, ts: Date.now(), recurringId: t.id });
+      pettyCash -= t.amount;
+      showToast(`Added: ${itemLabel({category:t.category, subtype:t.subtype})} (recurring)`, false);
+    } else {
+      incomes.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), source: t.source, note: t.note || '', amount: t.amount, date: ds, ts: Date.now(), recurringId: t.id });
+      pettyCash += t.amount;
+      showToast(`Added: ${t.source} (recurring)`, false);
+    }
+    t.lastMonthKey = curKey;
+    fired = true;
+  }
+  if (fired) { await Promise.all([saveExpenses(), saveIncomes(), savePettyCash(), saveRecurringTemplates()]); }
+}
+
+function addExpense() {
+  const category = $('categoryInput').value;
+  const amount = parseFloat($('amountInput').value);
+  const dateVal = $('dateInput').value || todayISO();
+  const note = $('noteInput').value.trim();
+  let subtype = '';
+  if (category === 'Other') {
+    subtype = $('otherNote').value.trim();
+    if (!subtype) { $('formErr').classList.add('show'); return; }
+  }
+  if (isNaN(amount) || amount <= 0) { $('formErr').classList.add('show'); return; }
+  $('formErr').classList.remove('show');
+
+  if (amount > pettyCash) {
+    const after = pettyCash - amount;
+    if (!confirm(`Petty Cash is ${fmt(pettyCash)}. Recording this ${fmt(amount)} expense will bring it to ${fmt(after)} (negative). Continue?`)) return;
+  }
+
+  const dow = new Date(dateVal + 'T00:00:00');
+  expenses.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), category, subtype, note, amount, date: dateVal, ts: Date.now(), flag: newFlag });
+  const limitMsg = limitWarning(category, dateVal, amount);
+  pettyCash -= amount; savePettyCash();
+
+  if ($('recurringCheckbox').checked) {
+    recurringTemplates.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      kind: 'expense', category, subtype, note, amount, flag: newFlag,
+      dayOfMonth: dow.getDate(), active: true, lastMonthKey: curMonthKeyStr()
+    });
+    saveRecurringTemplates();
+    $('recurringCheckbox').checked = false;
+  }
+
+  $('amountInput').value = ''; $('otherNote').value = ''; $('noteInput').value = ''; $('amountInput').focus();
+  newFlag = ''; syncFlagSeg();
+  saveExpenses(); render();
+  if (limitMsg) showToast(limitMsg, false);
+}
+
+function addIncome() {
+  const source = 'Allowance';
+  const amount = parseFloat($('incomeAmountInput').value);
+  const dateVal = $('incomeDateInput').value || todayISO();
+  const note = $('incomeNoteInput').value.trim();
+  if (isNaN(amount) || amount <= 0) { $('incomeFormErr').classList.add('show'); return; }
+  $('incomeFormErr').classList.remove('show');
+
+  const dow = new Date(dateVal + 'T00:00:00');
+  incomes.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), source, note, amount, date: dateVal, ts: Date.now() });
+  pettyCash += amount; savePettyCash();
+
+  if ($('incomeRecurringCheckbox').checked) {
+    recurringTemplates.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      kind: 'income', source, note, amount,
+      dayOfMonth: dow.getDate(), active: true, lastMonthKey: curMonthKeyStr()
+    });
+    saveRecurringTemplates();
+    $('incomeRecurringCheckbox').checked = false;
+  }
+
+  $('incomeAmountInput').value = ''; $('incomeNoteInput').value = ''; $('incomeAmountInput').focus();
+  saveIncomes(); render();
+}
+
+function deleteRecurringTemplate(id) {
+  recurringTemplates = recurringTemplates.filter(t => t.id !== id);
+  saveRecurringTemplates(); render();
+}
+
+function addDebt() {
+  const direction = $('debtDirectionSelect').value;
+  const person = $('debtPersonInput').value.trim();
+  const amount = parseFloat($('debtAmountInput').value);
+  const dateVal = $('debtDateInput').value || todayISO();
+  const note = $('debtNoteInput').value.trim();
+
+  if (!person || isNaN(amount) || amount <= 0) { $('debtFormErr').classList.add('show'); return; }
+  $('debtFormErr').classList.remove('show');
+
+  debts.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    person, direction, amount, originalAmount: amount, note, date: dateVal, ts: Date.now()
+  });
+  saveDebts();
+
+  $('debtPersonInput').value = ''; $('debtAmountInput').value = ''; $('debtNoteInput').value = '';
+  $('debtPersonInput').focus();
+  render();
+}
+
+function payDebt(id) {
+  const inputEl = $('debtPay_' + id);
+  if (!inputEl) return;
+  const amt = parseFloat(inputEl.value);
+  if (isNaN(amt) || amt <= 0) return;
+  const debt = debts.find(d => d.id === id);
+  if (!debt) return;
+
+  if (amt > debt.amount + 0.004 && !confirm(`This payment (${fmt(amt)}) is more than the ${fmt(debt.amount)} remaining on this AP/AR entry. Record it anyway?`)) return;
+
+  if (debt.direction === 'owe' && amt > pettyCash) {
+    const after = pettyCash - amt;
+    if (!confirm(`Petty Cash is ${fmt(pettyCash)}. Paying ${fmt(amt)} will bring it to ${fmt(after)} (negative). Continue?`)) return;
+  }
+
+  debt.amount = r2(Math.max(0, debt.amount - amt));
+  if (debt.direction === 'owe') { pettyCash -= amt; logTransaction('debt_pay_out', amt); }
+  else { pettyCash += amt; logTransaction('debt_pay_in', amt); }
+  savePettyCash();
+
+  const settled = debt.amount <= 0.004;
+  const personName = debt.person;
+  const debtType = debt.direction === 'owe' ? 'AP' : 'AR';
+  if (settled) { debts = debts.filter(d => d.id !== id); }
+  saveDebts();
+  render();
+  showToast(settled ? `${personName}'s ${debtType} settled.` : `Payment recorded — ${fmt(debt.amount)} remaining.`, false);
+}
+
+function deleteDebt(id) {
+  const idx = debts.findIndex(d => d.id === id);
+  if (idx === -1) return;
+  lastDeleted = { kind: 'debt', item: debts[idx], index: idx };
+  debts.splice(idx, 1);
+  saveDebts(); render();
+  showToast('AP/AR entry deleted.', true);
+}
+
+function showToast(msg, withUndo) {
+  clearTimeout(toastTimer);
+  $('toastMsg').textContent = msg;
+  $('undoBtn').style.display = withUndo ? 'inline' : 'none';
+  $('toast').classList.add('show');
+  toastTimer = setTimeout(() => { $('toast').classList.remove('show'); lastDeleted = null; }, 5000);
+}
+
+function deleteExpense(id) {
+  const idx = expenses.findIndex(e => e.id === id);
+  if (idx === -1) return;
+  lastDeleted = { kind: 'expense', item: expenses[idx], index: idx };
+  pettyCash += expenses[idx].amount; savePettyCash();
+  expenses.splice(idx, 1);
+  saveExpenses(); render();
+  showToast('Entry deleted.', true);
+}
+
+function deleteIncome(id) {
+  const idx = incomes.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  lastDeleted = { kind: 'income', item: incomes[idx], index: idx };
+  pettyCash -= incomes[idx].amount; savePettyCash();
+  incomes.splice(idx, 1);
+  saveIncomes(); render();
+  showToast('Income entry deleted.', true);
+}
+
+function reverseLogEffect(entry) {
+  if (entry.type === 'deposit') { bankBalance -= entry.amount; }
+  else if (entry.type === 'withdraw') { bankBalance += entry.amount; pettyCash -= entry.amount; }
+  else if (entry.type === 'topup') { pettyCash -= entry.amount; }
+  else if (entry.type === 'adjust_bank') { bankBalance -= entry.amount; }
+  else if (entry.type === 'adjust_cash') { pettyCash -= entry.amount; }
+  else if (entry.type === 'debt_pay_out') { pettyCash += entry.amount; }
+  else if (entry.type === 'debt_pay_in') { pettyCash -= entry.amount; }
+  saveBankBalance(); savePettyCash();
+}
+function reapplyLogEffect(entry) {
+  if (entry.type === 'deposit') { bankBalance += entry.amount; }
+  else if (entry.type === 'withdraw') { bankBalance -= entry.amount; pettyCash += entry.amount; }
+  else if (entry.type === 'topup') { pettyCash += entry.amount; }
+  else if (entry.type === 'adjust_bank') { bankBalance += entry.amount; }
+  else if (entry.type === 'adjust_cash') { pettyCash += entry.amount; }
+  else if (entry.type === 'debt_pay_out') { pettyCash -= entry.amount; }
+  else if (entry.type === 'debt_pay_in') { pettyCash += entry.amount; }
+  saveBankBalance(); savePettyCash();
+}
+
+function deleteLogEntry(id) {
+  const idx = transactionsLog.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  lastDeleted = { kind: 'log', item: transactionsLog[idx], index: idx };
+  reverseLogEffect(transactionsLog[idx]);
+  transactionsLog.splice(idx, 1);
+  saveTransactionsLog(); render();
+  showToast('Transaction deleted.', true);
+}
+
+$('undoBtn').addEventListener('click', () => {
+  if (!lastDeleted) return;
+  if (lastDeleted.kind === 'log') {
+    transactionsLog.splice(lastDeleted.index, 0, lastDeleted.item);
+    reapplyLogEffect(lastDeleted.item);
+    saveTransactionsLog();
+  } else if (lastDeleted.kind === 'income') {
+    incomes.splice(lastDeleted.index, 0, lastDeleted.item);
+    pettyCash += lastDeleted.item.amount; savePettyCash();
+    saveIncomes();
+  } else if (lastDeleted.kind === 'debt') {
+    debts.splice(lastDeleted.index, 0, lastDeleted.item);
+    saveDebts();
+  } else {
+    expenses.splice(lastDeleted.index, 0, lastDeleted.item);
+    pettyCash -= lastDeleted.item.amount; savePettyCash();
+    saveExpenses();
+  }
+  lastDeleted = null;
+  $('toast').classList.remove('show');
+  render();
+});
+
+function startEdit(id) { editingId = id; render(); }
+function cancelEdit() { editingId = null; render(); }
+
+function saveEdit(id) {
+  const amt = parseFloat($('editAmount_' + id).value);
+  const dt = $('editDate_' + id).value;
+  const note = $('editNote_' + id).value.trim();
+  if (isNaN(amt) || amt <= 0 || !dt) { showToast('Enter an amount above ₱0 and a date.', false); return; }
+  const e = expenses.find(x => x.id === id);
+  const projected = pettyCash + (e.amount - amt);
+  if (projected < 0 && !confirm(`This change will bring Petty Cash to ${fmt(projected)} (negative). Continue?`)) return;
+  pettyCash = projected; savePettyCash();
+  e.amount = amt; e.date = dt; e.note = note;
+  const fl = $('editFlag_' + id); if (fl) e.flag = fl.value;
+  editingId = null;
+  saveExpenses(); render();
+}
+
+function startEditIncome(id) { editingIncomeId = id; render(); }
+function cancelEditIncome() { editingIncomeId = null; render(); }
+
+function saveEditIncome(id) {
+  const amt = parseFloat($('editIncomeAmount_' + id).value);
+  const dt = $('editIncomeDate_' + id).value;
+  const note = $('editIncomeNote_' + id).value.trim();
+  if (isNaN(amt) || amt <= 0 || !dt) { showToast('Enter an amount above ₱0 and a date.', false); return; }
+  const i = incomes.find(x => x.id === id);
+  pettyCash += (amt - i.amount); savePettyCash();
+  i.amount = amt; i.date = dt; i.note = note;
+  editingIncomeId = null;
+  saveIncomes(); render();
+}
+
+function itemLabel(e) {
+  if (e.category === 'Food') return e.subtype ? ('Food — ' + e.subtype) : 'Food';
+  if (e.category === 'Other') return 'Other — ' + e.subtype;
+  return CAT_LABELS[e.category];
+}
+
+function isSameWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now); monday.setDate(now.getDate() + diffToMonday); monday.setHours(0,0,0,0);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+  return d >= monday && d <= sunday;
+}
+
+function monthKey(offset) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
+function isInMonth(dateStr, offset) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const k = monthKey(offset);
+  return d.getFullYear() === k.y && d.getMonth() === k.m;
+}
+function monthName(offset) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function catTotalsFor(list) {
+  const byCat = {};
+  list.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + e.amount; });
+  return byCat;
+}
+
+function dayTotal(dateStr) {
+  return expenses.filter(e => e.date === dateStr).reduce((s,e) => s + e.amount, 0);
+}
+
+function hasSpend(ds) { return expenses.some(e => e.date === ds); }
+
+function firstLoggedDate() {
+  let first = null;
+  expenses.forEach(e => { if (first === null || e.date < first) first = e.date; });
+  homeDays.forEach(d => { if (first === null || d < first) first = d; });
+  return first;
+}
+
+// Out day = spent money. Home day = marked, nothing spent.
+// Not logged = a finished day, after you started logging, with neither.
+function monthDayStats(year, month0) {
+  const todayStr = todayISO();
+  const first = firstLoggedDate();
+  const numDays = new Date(year, month0 + 1, 0).getDate();
+  const totals = {};
+  expenses.forEach(e => { totals[e.date] = (totals[e.date] || 0) + e.amount; });
+  let out = 0, home = 0, unlogged = 0, spend = 0;
+  for (let d = 1; d <= numDays; d++) {
+    const ds = `${year}-${String(month0 + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const s = totals[ds] || 0;
+    if (s > 0) { out++; spend += s; }
+    else if (homeDays.includes(ds)) home++;
+    else if (first && ds >= first && ds < todayStr) unlogged++;
+  }
+  return { numDays, out, home, unlogged, spend, avg: out ? spend / out : 0 };
+}
+
+function focusCalDay(ds) {
+  const el = document.querySelector('.cal-cell[data-date="' + ds + '"]');
+  if (el) el.focus();
+}
+
+function markHomeDay(ds) {
+  if (!ds) return;
+  if (ds > todayISO()) { showToast("You can't mark a day that hasn't happened yet.", false); return; }
+  if (hasSpend(ds)) { showToast(ds + ' already has spending, so it counts as an out day.', false); return; }
+  if (homeDays.includes(ds)) { showToast(ds + ' is already a home day.', false); return; }
+  homeDays.push(ds); homeDays.sort();
+  saveHomeDays();
+  selectedDay = ds;
+  const d = new Date(ds + 'T00:00:00');
+  calYear = d.getFullYear(); calMonth = d.getMonth();
+  render();
+  showToast(ds + ' marked as a home day.', false);
+}
+
+function unmarkHomeDay(ds) {
+  homeDays = homeDays.filter(d => d !== ds);
+  saveHomeDays(); render();
+  showToast('Home day removed.', false);
+}
+
+function dayColor(spend, db) {
+  if (spend <= 0) return { bg: 'transparent', text: '#8A8778' };
+  if (!db || db <= 0) return { bg: '#EEEDE6', text: '#1A1A17' };
+  const ratio = spend / db;
+  if (ratio < 0.8) {
+    const light = 90 - ratio * 25;
+    return { bg: `hsl(130,35%,${light}%)`, text: '#1A1A17' };
+  } else if (ratio < 1.0) {
+    return { bg: 'hsl(35,70%,78%)', text: '#1A1A17' };
+  } else {
+    const over = Math.min(ratio, 2.5);
+    const light = Math.max(28, 65 - (over - 1) * 30);
+    return { bg: `hsl(6,65%,${light}%)`, text: light < 48 ? '#FCFCF9' : '#1A1A17' };
+  }
+}
+
+function renderCalendar() {
+  $('calMonthLabel').textContent = new Date(calYear, calMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+  $('calHead').innerHTML = WEEKDAYS.map(w => `<div class="cal-head">${w}</div>`).join('');
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const numDays = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayStr = todayISO();
+
+  let anyFallback = false;
+  for (let i = 0; i < 7; i++) {
+    const el = $('wb_' + i);
+    if (!el) continue;
+    if (weekdayBudgets[i] > 0) { el.placeholder = '0'; }
+    else { el.placeholder = budget > 0 ? Math.round(budget / numDays) : '0'; if (budget > 0) anyFallback = true; }
+  }
+
+  let cells = '';
+  for (let i = 0; i < firstDay; i++) cells += '<div class="cal-cell empty"></div>';
+
+  let overCount = 0, daysWithSpend = 0;
+  let highest = null, lowest = null;
+  const firstLogged = firstLoggedDate();
+
+  for (let d = 1; d <= numDays; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const dayBudget = weekdayBudgets[dow] > 0 ? weekdayBudgets[dow] : (budget > 0 ? budget / numDays : 0);
+    const spend = dayTotal(ds);
+    const home = spend <= 0 && homeDays.includes(ds);
+    const unlogged = spend <= 0 && !home && !!firstLogged && ds >= firstLogged && ds < todayStr;
+    const color = home ? { bg: 'hsl(205,45%,89%)', text: '#2F5F7A' } : dayColor(spend, dayBudget);
+    if (spend > 0) {
+      daysWithSpend++;
+      if (!highest || spend > highest.spend) highest = { ds, spend };
+      if (!lowest || spend < lowest.spend) lowest = { ds, spend };
+      if (dayBudget > 0 && spend > dayBudget) overCount++;
+    }
+    const isToday = ds === todayStr;
+    const isSelected = ds === selectedDay;
+    const label = ds + (home ? ', home day' : unlogged ? ', not logged' : spend > 0 ? ', spent ' + fmtShort(spend) : '');
+    cells += `<div class="cal-cell ${isToday?'is-today':''} ${isSelected?'selected':''} ${unlogged?'unlogged':''}" data-date="${ds}" tabindex="0" role="button" aria-label="${label}" style="background-color:${color.bg}">
+      <div class="cal-date" style="color:${color.text}">${d}</div>
+      ${spend > 0 ? `<div class="cal-amt" style="color:${color.text}">${fmtShort(spend)}</div>` : (home ? `<div class="cal-tag" style="color:${color.text}">home</div>` : '')}
+    </div>`;
+  }
+  $('calGrid').innerHTML = cells;
+  $('calGrid').querySelectorAll('.cal-cell[data-date]').forEach(cell => {
+    cell.addEventListener('click', () => { selectedDay = cell.dataset.date; render(); });
+    cell.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedDay = cell.dataset.date; render(); focusCalDay(selectedDay); }
+    });
+  });
+
+  let statsHtml = '';
+  const ms = monthDayStats(calYear, calMonth);
+  statsHtml += `<div class="cal-stat-line">Out days: <b>${ms.out}</b></div>`;
+  statsHtml += `<div class="cal-stat-line">Home days: <b>${ms.home}</b></div>`;
+  if (ms.unlogged) statsHtml += `<div class="cal-stat-line">Not logged: <b class="warn">${ms.unlogged}</b></div>`;
+  statsHtml += `<div class="cal-stat-line">Days over budget: <b>${overCount} of ${ms.out}</b></div>`;
+  if (ms.out) statsHtml += `<div class="cal-stat-line">Average per out day: <b>${fmt(ms.avg)}</b></div>`;
+  if (anyFallback) {
+    statsHtml += `<div class="cal-stat-line cal-wb-note">Weekdays left at 0 fall back to monthly limit ÷ ${numDays} days.</div>`;
+  }
+  if (highest) statsHtml += `<div class="cal-stat-line">Highest spend day: <b>${highest.ds} — ${fmt(highest.spend)}</b></div>`;
+  if (lowest) statsHtml += `<div class="cal-stat-line">Lowest spend day: <b>${lowest.ds} — ${fmt(lowest.spend)}</b></div>`;
+  $('calStats').innerHTML = statsHtml;
+
+  if (selectedDay) {
+    const dayExpenses = expenses.filter(e => e.date === selectedDay);
+    const marked = homeDays.includes(selectedDay);
+    let title = selectedDay;
+    if (dayExpenses.length) title += ` — ${dayExpenses.length} entr${dayExpenses.length===1?'y':'ies'}`;
+    else if (marked) title += ' — home day';
+    $('calDayTitle').textContent = title;
+    if (dayExpenses.length) {
+      const total = dayExpenses.reduce((s,e) => s + e.amount, 0);
+      $('calDayBody').innerHTML = dayExpenses.map(e => `
+        <div class="item-row">
+          <div class="item-main"><div class="item-desc">${escapeHtml(itemLabel(e))}</div></div>
+          <div class="item-amount">${fmt(e.amount)}</div>
+        </div>
+      `).join('') + `<div class="cal-day-total">Total: ${fmt(total)}</div>`
+        + (marked ? `<div class="cal-day-note">Also marked as a home day, but this day has spending, so it counts as an out day.</div>` : '');
+    } else if (marked) {
+      $('calDayBody').innerHTML = `<div class="cal-day-detail-empty">Home day. Nothing spent.</div>
+        <div class="cal-day-actions"><button class="btn-sm ghost" id="homeToggleBtn" type="button">REMOVE HOME DAY</button></div>`;
+    } else if (selectedDay > todayStr) {
+      $('calDayBody').innerHTML = `<div class="cal-day-detail-empty">Nothing logged yet.</div>`;
+    } else {
+      const wasMissed = !!firstLogged && selectedDay >= firstLogged && selectedDay < todayStr;
+      $('calDayBody').innerHTML = `<div class="cal-day-detail-empty">${wasMissed ? 'Not logged. Add an expense, or mark it as a home day if you spent nothing.' : 'No entries on this day.'}</div>
+        <div class="cal-day-actions"><button class="btn-sm home" id="homeToggleBtn" type="button">MARK AS HOME DAY</button></div>`;
+    }
+    const toggleBtn = $('homeToggleBtn');
+    if (toggleBtn) toggleBtn.addEventListener('click', () => { if (homeDays.includes(selectedDay)) unmarkHomeDay(selectedDay); else markHomeDay(selectedDay); });
+  } else {
+    $('calDayTitle').textContent = 'Tap a day to see its entries';
+    $('calDayBody').innerHTML = '';
+  }
+}
+
+function updateFooterCount() {
+  const total = expenses.length + incomes.length + transactionsLog.length;
+  $('itemCount').textContent = `${total} TRANSACTION${total===1?'':'S'} · ${pendingSaves > 0 ? 'SAVING…' : 'SAVED LOCALLY'}`;
+}
+
+function render() {
+  pettyCash = r2(pettyCash); bankBalance = r2(bankBalance);
+  $('bankAmount').textContent = fmt(bankBalance);
+  $('bankAmount').classList.toggle('negative', bankBalance < 0);
+  $('cashAmount').textContent = fmt(pettyCash);
+  $('cashAmount').classList.toggle('negative', pettyCash < 0);
+
+  const filterChips = Object.keys(CATS).map(c => ({ value: c, label: CAT_LABELS[c] }));
+  filterChips.push({ value: '__income__', label: 'Income' });
+  filterChips.push({ value: '__bank__', label: 'Bank Activity' });
+  $('filters').innerHTML = filterChips.map(f => `<button class="chip ${f.value===activeFilter?'active':''}" data-cat="${f.value}">${f.label}</button>`).join('');
+  $('filters').querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => { activeFilter = (activeFilter === btn.dataset.cat) ? null : btn.dataset.cat; render(); });
+  });
+
+  const thisMonthList = expenses.filter(e => isInMonth(e.date, 0));
+  const lastMonthList = expenses.filter(e => isInMonth(e.date, -1));
+  const monthTotal = thisMonthList.reduce((s,e) => s + e.amount, 0);
+  const lastMonthTotal = lastMonthList.reduce((s,e) => s + e.amount, 0);
+  const todayTotal = expenses.filter(e => e.date === todayISO()).reduce((s,e) => s + e.amount, 0);
+  const weekTotal = expenses.filter(e => isSameWeek(e.date)).reduce((s,e) => s + e.amount, 0);
+  const monthIncomeList = incomes.filter(i => isInMonth(i.date, 0));
+  const monthIncomeTotal = monthIncomeList.reduce((s,i) => s + i.amount, 0);
+  const net = monthIncomeTotal - monthTotal;
+
+  $('totalAmount').textContent = fmt(monthTotal);
+  $('totalAmount').classList.toggle('over', budget > 0 && monthTotal > budget);
+  $('statToday').textContent = (todayTotal <= 0 && homeDays.includes(todayISO())) ? 'Home' : fmtShort(todayTotal);
+  {
+    const nowD = new Date();
+    const ms = monthDayStats(nowD.getFullYear(), nowD.getMonth());
+    $('statOut').textContent = ms.out;
+    $('statHome').textContent = ms.home;
+    $('statUnlogged').textContent = ms.unlogged;
+    $('statUnlogged').classList.toggle('warn', ms.unlogged > 0);
+    $('statAvg').textContent = ms.out ? fmtShort(ms.avg) : '₱0';
+  }
+  $('statWeek').textContent = fmtShort(weekTotal);
+  $('statMonth').textContent = fmtShort(monthTotal);
+  $('statIncome').textContent = fmtShort(monthIncomeTotal);
+  $('statNet').textContent = (net >= 0 ? '+' : '-') + fmtShort(Math.abs(net));
+  $('statNet').className = 'stat-val ' + (net >= 0 ? 'positive' : 'negative');
+
+  if (lastMonthTotal > 0) {
+    const diff = monthTotal - lastMonthTotal;
+    const pct = Math.abs(diff / lastMonthTotal * 100).toFixed(0);
+    if (diff > 0) $('compareLine').innerHTML = `<span class="up">▲ ${fmtShort(diff)} (${pct}%)</span> vs last month`;
+    else if (diff < 0) $('compareLine').innerHTML = `<span class="down">▼ ${fmtShort(Math.abs(diff))} (${pct}%)</span> vs last month`;
+    else $('compareLine').textContent = 'Same as last month';
+  } else {
+    $('compareLine').textContent = monthTotal > 0 ? 'No data last month to compare' : '';
+  }
+
+  const byCatMonth = catTotalsFor(thisMonthList);
+  const catEntries = Object.entries(byCatMonth).sort((a,b) => b[1]-a[1]);
+  $('topSpender').textContent = catEntries.length ? `Biggest category: ${CAT_LABELS[catEntries[0][0]]} (${fmtShort(catEntries[0][1])})` : '';
+
+  if (budget > 0) {
+    const pct = Math.min(100, (monthTotal / budget) * 100);
+    $('budgetBar').style.width = pct + '%';
+    $('budgetBar').classList.toggle('over', monthTotal > budget);
+    $('budgetBar').classList.toggle('warn', monthTotal <= budget && pct >= 80);
+    $('budgetNote').textContent = monthTotal > budget ? 'Over limit by ' + fmt(monthTotal - budget) : fmt(budget - monthTotal) + ' left this month';
+  } else {
+    $('budgetBar').style.width = '0%'; $('budgetBar').className = 'bar-fill'; $('budgetNote').textContent = '';
+  }
+
+  // Cross-check: category limits and weekday budgets vs the overall monthly budget
+  {
+    let msg = '';
+    if (budget > 0) {
+      const catLimitsSum = Object.values(catLimits).reduce((s,v) => s + (v > 0 ? v : 0), 0);
+      const now = new Date();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      let weekdayMonthlyTotal = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(now.getFullYear(), now.getMonth(), d).getDay();
+        weekdayMonthlyTotal += weekdayBudgets[dow] > 0 ? weekdayBudgets[dow] : (budget / daysInMonth);
+      }
+      if (catLimitsSum > budget * 1.02) {
+        msg = `Category limits add up to ${fmtShort(catLimitsSum)} — more than the ${fmtShort(budget)} monthly budget.`;
+      } else if (Math.abs(weekdayMonthlyTotal - budget) > budget * 0.05) {
+        msg = weekdayMonthlyTotal > budget
+          ? `Weekday budgets add up to ~${fmtShort(weekdayMonthlyTotal)}/mo — above the ${fmtShort(budget)} monthly budget.`
+          : `Weekday budgets add up to ~${fmtShort(weekdayMonthlyTotal)}/mo — below the ${fmtShort(budget)} monthly budget.`;
+      }
+    }
+    $('crossCheckNote').textContent = msg;
+  }
+
+  $('trendTitle').textContent = trendRange === 7 ? 'LAST 7 DAYS' : 'LAST 30 DAYS';
+  const trendDays = [];
+  for (let i = trendRange - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); trendDays.push(dISO(d)); }
+  const trendTotals = trendDays.map(ds => dayTotal(ds));
+  const maxTrend = Math.max(1, ...trendTotals);
+  $('trendBars').className = 'trend-bars' + (trendRange === 30 ? ' dense' : '');
+  $('trendBars').innerHTML = trendDays.map((ds, i) => {
+    const h = Math.max(2, Math.round((trendTotals[i]/maxTrend)*50));
+    const isToday = ds === todayISO();
+    const label = trendRange === 7
+      ? new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'narrow' })
+      : String(new Date(ds + 'T00:00:00').getDate());
+    return `<div class="trend-col"><div class="trend-bar ${isToday?'today':''}" style="height:${h}px" title="${fmt(trendTotals[i])}"></div><div class="trend-day">${label}</div></div>`;
+  }).join('');
+
+  const LOG_LABELS = TX_TYPE_LABELS;
+  const LOG_CLASS = { deposit: 'inflow', withdraw: 'transfer', topup: 'inflow', adjust_bank: 'adjust', adjust_cash: 'adjust', debt_pay_in: 'inflow', debt_pay_out: 'outflow' };
+
+  let visible;
+  if (activeFilter === '__bank__') {
+    visible = transactionsLog.map(t => ({ kind: 'log', ...t }));
+  } else if (activeFilter === '__income__') {
+    visible = incomes.map(i => ({ kind: 'income', ...i }));
+  } else if (activeFilter) {
+    visible = expenses.filter(e => e.category === activeFilter).map(e => ({ kind: 'expense', ...e }));
+  } else {
+    visible = [
+      ...expenses.map(e => ({ kind: 'expense', ...e })),
+      ...incomes.map(i => ({ kind: 'income', ...i })),
+      ...transactionsLog.map(t => ({ kind: 'log', ...t }))
+    ].sort((a, b) => (b.ts || Date.parse(b.date)) - (a.ts || Date.parse(a.date)));
+  }
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase();
+    visible = visible.filter(x => {
+      const label = x.kind === 'expense' ? (CAT_LABELS[x.category] + ' ' + (x.subtype||'') + ' ' + (x.note||''))
+        : x.kind === 'income' ? (x.source + ' ' + (x.note||''))
+        : LOG_LABELS[x.type];
+      return label.toLowerCase().includes(q);
+    });
+  }
+
+  const nothingAtAll = expenses.length === 0 && incomes.length === 0 && transactionsLog.length === 0;
+  if (visible.length === 0) {
+    $('itemsList').innerHTML = `<div class="empty">${nothingAtAll ? 'No transactions yet. Add an expense or income, or log a deposit/withdrawal above.' : 'No matching transactions.'}</div>`;
+  } else {
+    $('itemsList').innerHTML = visible.map(x => {
+      if (x.kind === 'expense') {
+        const e = x;
+        if (editingId === e.id) {
+          return `<div class="edit-row">
+            <div class="form-row">
+              <input type="text" id="editNote_${e.id}" placeholder="Note (optional)" value="${escapeHtml(e.note||'')}" maxlength="80">
+            </div>
+            <div class="form-row">
+              <input type="number" id="editAmount_${e.id}" value="${e.amount}" min="0" step="0.01">
+              <input type="date" id="editDate_${e.id}" value="${e.date}">
+            </div>
+            <div class="form-row">
+              <select id="editFlag_${e.id}" aria-label="Need or want"><option value="">Not tagged</option><option value="need"${e.flag === 'need' ? ' selected' : ''}>Need</option><option value="want"${e.flag === 'want' ? ' selected' : ''}>Want</option></select>
+            </div>
+            <div class="form-row">
+              <button class="btn-sm" data-save="${e.id}">SAVE</button>
+              <button class="btn-sm ghost" data-cancel="1">CANCEL</button>
+            </div>
+          </div>`;
+        }
+        return `<div class="item-row">
+          <div class="item-main"><div class="item-desc">${escapeHtml(itemLabel(e))}${flagBtnHtml(e)}</div><div class="item-meta">${e.date}${e.note ? ' · ' + escapeHtml(e.note) : ''}</div>${jeLineHtml('expense', e)}</div>
+          <div class="item-amount">${fmt(e.amount)}</div>
+          <div class="item-actions">
+            <button class="icon-btn" data-edit="${e.id}" aria-label="Edit">EDIT</button>
+            <button class="icon-btn danger" data-del="${e.id}" aria-label="Delete">&times;</button>
+          </div>
+        </div>`;
+      } else if (x.kind === 'income') {
+        const i = x;
+        if (editingIncomeId === i.id) {
+          return `<div class="edit-row">
+            <div class="form-row">
+              <input type="text" id="editIncomeNote_${i.id}" placeholder="Note (optional)" value="${escapeHtml(i.note||'')}" maxlength="80">
+            </div>
+            <div class="form-row">
+              <input type="number" id="editIncomeAmount_${i.id}" value="${i.amount}" min="0" step="0.01">
+              <input type="date" id="editIncomeDate_${i.id}" value="${i.date}">
+            </div>
+            <div class="form-row">
+              <button class="btn-sm" data-saveincome="${i.id}">SAVE</button>
+              <button class="btn-sm ghost" data-cancelincome="1">CANCEL</button>
+            </div>
+          </div>`;
+        }
+        return `<div class="item-row">
+          <div class="item-main"><div class="item-desc">${escapeHtml(i.source)}<span class="item-tag inflow">INCOME</span></div><div class="item-meta">${i.date}${i.note ? ' · ' + escapeHtml(i.note) : ''}</div>${jeLineHtml('income', i)}</div>
+          <div class="item-amount inflow">+${fmt(i.amount)}</div>
+          <div class="item-actions">
+            <button class="icon-btn" data-editincome="${i.id}" aria-label="Edit">EDIT</button>
+            <button class="icon-btn danger" data-delincome="${i.id}" aria-label="Delete">&times;</button>
+          </div>
+        </div>`;
+      } else {
+        const cls = LOG_CLASS[x.type];
+        const isAdjust = cls === 'adjust';
+        const sign = isAdjust ? (x.amount >= 0 ? '+' : '') : (cls === 'inflow' ? '+' : (cls === 'outflow' ? '-' : ''));
+        const tagText = isAdjust ? 'ADJ' : (cls === 'inflow' ? 'IN' : (cls === 'outflow' ? 'OUT' : 'TRANSFER'));
+        const amtCls = isAdjust ? (x.amount >= 0 ? 'inflow' : '') : cls;
+        return `<div class="item-row">
+          <div class="item-main"><div class="item-desc">${LOG_LABELS[x.type]}<span class="item-tag ${cls}">${tagText}</span></div><div class="item-meta">${x.date}</div>${jeLineHtml('log', x)}</div>
+          <div class="item-amount ${amtCls}">${sign}${fmt(x.amount)}</div>
+          <div class="item-actions">
+            <button class="icon-btn danger" data-dellog="${x.id}" aria-label="Delete">&times;</button>
+          </div>
+        </div>`;
+      }
+    }).join('');
+    $('itemsList').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteExpense(b.dataset.del)));
+    $('itemsList').querySelectorAll('[data-flagcycle]').forEach(b => b.addEventListener('click', () => cycleFlag(b.dataset.flagcycle)));
+    $('itemsList').querySelectorAll('[data-dellog]').forEach(b => b.addEventListener('click', () => deleteLogEntry(b.dataset.dellog)));
+    $('itemsList').querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => startEdit(b.dataset.edit)));
+    $('itemsList').querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', () => saveEdit(b.dataset.save)));
+    $('itemsList').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', cancelEdit));
+    $('itemsList').querySelectorAll('[data-delincome]').forEach(b => b.addEventListener('click', () => deleteIncome(b.dataset.delincome)));
+    $('itemsList').querySelectorAll('[data-editincome]').forEach(b => b.addEventListener('click', () => startEditIncome(b.dataset.editincome)));
+    $('itemsList').querySelectorAll('[data-saveincome]').forEach(b => b.addEventListener('click', () => saveEditIncome(b.dataset.saveincome)));
+    $('itemsList').querySelectorAll('[data-cancelincome]').forEach(b => b.addEventListener('click', cancelEditIncome));
+  }
+
+  if (expenses.length > 0) {
+    $('breakdown').style.display = 'block';
+    renderDonut(catEntries, monthTotal);
+    $('catRows').innerHTML = catEntries.map(([cat, amt]) => {
+      const limit = catLimits[cat] || 0;
+      const isOver = limit > 0 && amt > limit;
+      return `<div class="cat-row">
+        <span class="cat-swatch" style="background:${CATS[cat]}"></span>
+        <div class="cat-name">${CAT_LABELS[cat].toUpperCase()}</div>
+        <div class="cat-amt${isOver ? ' over' : ''}">${fmtShort(amt)}</div>
+      </div>${isOver ? `<div class="cat-over-note">Over ${CAT_LABELS[cat]} limit by ${fmtShort(amt - limit)}</div>` : ''}`;
+    }).join('');
+  } else { $('breakdown').style.display = 'none'; }
+
+  updateFooterCount();
+
+  renderDebts();
+  renderRecurringList();
+  if ($('reportPanel').classList.contains('show')) renderReport();
+  renderCalendar();
+  renderGoals();
+  renderLimits();
+  renderNeedWant();
+  renderJournal();
+  renderHome();
+}
+
+function renderDonut(catEntries, total) {
+  const svg = $('donutChart');
+  if (total <= 0 || catEntries.length === 0) {
+    svg.innerHTML = `<circle cx="60" cy="60" r="50" fill="none" stroke="#EEEDE6" stroke-width="16"></circle>`;
+    return;
+  }
+  const r = 50, cx = 60, cy = 60, sw = 16;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+  let parts = '';
+  catEntries.forEach(([cat, amt]) => {
+    const frac = amt / total;
+    const len = frac * circumference;
+    parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${CATS[cat]}" stroke-width="${sw}"
+      stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 ${cx} ${cy})"></circle>`;
+    offset += len;
+  });
+  svg.innerHTML = parts;
+}
+
+function renderDebts() {
+  const oweTotal = debts.filter(d => d.direction === 'owe').reduce((s,d) => s + d.amount, 0);
+  const owedTotal = debts.filter(d => d.direction === 'owed').reduce((s,d) => s + d.amount, 0);
+  $('debtsSummary').innerHTML = `
+    <div class="debts-summary-item">AP (PAYABLE)<br><b style="color:#A63A2E">${fmt(oweTotal)}</b></div>
+    <div class="debts-summary-item">AR (RECEIVABLE)<br><b style="color:#4F6A4A">${fmt(owedTotal)}</b></div>
+  `;
+
+  if (debts.length === 0) {
+    $('debtsList').innerHTML = `<div class="debts-empty">No AP/AR entries tracked.</div>`;
+    return;
+  }
+  $('debtsList').innerHTML = debts.map(d => `
+    <div class="debt-row">
+      <div class="debt-main">
+        <div>${escapeHtml(d.person)}<span class="item-tag ${d.direction === 'owe' ? '' : 'inflow'}">${d.direction === 'owe' ? 'AP' : 'AR'}</span></div>
+        <div class="debt-meta">${d.date}${d.note ? ' · ' + escapeHtml(d.note) : ''}${d.amount !== d.originalAmount ? ` · of ${fmt(d.originalAmount)}` : ''}</div>
+      </div>
+      <div class="debt-amt ${d.direction}">${fmt(d.amount)}</div>
+      <div class="debt-actions">
+        <input type="number" class="debt-pay-input" id="debtPay_${d.id}" placeholder="pay" min="0" step="0.01">
+        <button class="btn-sm" data-pay="${d.id}">PAY</button>
+        <button class="icon-btn danger" data-deldebt="${d.id}" aria-label="Delete">&times;</button>
+      </div>
+    </div>
+  `).join('');
+  $('debtsList').querySelectorAll('[data-pay]').forEach(b => b.addEventListener('click', () => payDebt(b.dataset.pay)));
+  $('debtsList').querySelectorAll('[data-deldebt]').forEach(b => b.addEventListener('click', () => deleteDebt(b.dataset.deldebt)));
+  debts.forEach(d => {
+    const inp = $('debtPay_' + d.id);
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') payDebt(d.id); });
+  });
+}
+
+function renderRecurringList() {
+  if (recurringTemplates.length === 0) {
+    $('recurringList').innerHTML = `<div class="recurring-empty">No recurring entries yet.</div>`;
+    return;
+  }
+  $('recurringList').innerHTML = recurringTemplates.map(t => {
+    const label = t.kind === 'expense' ? itemLabel({ category: t.category, subtype: t.subtype }) : t.source;
+    const tagCls = t.kind === 'income' ? 'inflow' : '';
+    const sign = t.kind === 'income' ? '+' : '-';
+    return `<div class="recurring-row">
+      <div class="recurring-main">
+        <div>${escapeHtml(label)}<span class="item-tag ${tagCls}">${t.kind === 'income' ? 'INCOME' : 'EXPENSE'}</span></div>
+        <div class="recurring-meta">${sign}${fmt(t.amount)} · every day ${t.dayOfMonth} of the month</div>
+      </div>
+      <button class="icon-btn danger" data-delrecurring="${t.id}" aria-label="Delete">&times;</button>
+    </div>`;
+  }).join('');
+  $('recurringList').querySelectorAll('[data-delrecurring]').forEach(b => b.addEventListener('click', () => deleteRecurringTemplate(b.dataset.delrecurring)));
+}
+
+function buildMonthlyReportData(offset) {
+  const thisList = expenses.filter(e => isInMonth(e.date, offset));
+  const lastList = expenses.filter(e => isInMonth(e.date, offset - 1));
+  const thisIncomeList = incomes.filter(i => isInMonth(i.date, offset));
+  const thisTotal = thisList.reduce((s,e)=>s+e.amount,0);
+  const lastTotal = lastList.reduce((s,e)=>s+e.amount,0);
+  const incomeTotal = thisIncomeList.reduce((s,i)=>s+i.amount,0);
+  const byCat = catTotalsFor(thisList);
+  const catEntries = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  return { thisList, lastList, thisIncomeList, thisTotal, lastTotal, incomeTotal, net: incomeTotal - thisTotal, catEntries };
+}
+
+function renderReport() {
+  const d = buildMonthlyReportData(0);
+  const nowD = new Date();
+  const ds = monthDayStats(nowD.getFullYear(), nowD.getMonth());
+  const catLines = d.catEntries.map(([c,amt]) => `<div class="report-line"><span>${CAT_LABELS[c]}</span><b>${fmt(amt)} (${(amt/d.thisTotal*100).toFixed(0)}%)</b></div>`).join('');
+  const diff = d.thisTotal - d.lastTotal;
+  const diffText = d.lastTotal > 0
+    ? (diff === 0 ? 'Same as last month' : (diff > 0 ? `Up ${fmt(diff)} (${(diff/d.lastTotal*100).toFixed(0)}%) vs last month` : `Down ${fmt(Math.abs(diff))} (${(Math.abs(diff)/d.lastTotal*100).toFixed(0)}%) vs last month`))
+    : 'No data last month to compare';
+
+  $('reportPanel').innerHTML = `
+    <div class="report-title">MONTHLY REPORT — ${monthName(0).toUpperCase()}</div>
+    <div class="report-section">
+      <div class="report-line"><span>Total income</span><b>${fmt(d.incomeTotal)}</b></div>
+      <div class="report-line"><span>Total spent</span><b>${fmt(d.thisTotal)}</b></div>
+      <div class="report-line"><span>${d.net >= 0 ? 'Net (saved)' : 'Net (shortfall)'}</span><b>${fmt(Math.abs(d.net))}</b></div>
+      <div class="report-line"><span>Last month spent</span><b>${fmt(d.lastTotal)}</b></div>
+      <div class="report-line"><span>${diffText}</span><b></b></div>
+      <div class="report-line"><span>Entries this month</span><b>${d.thisList.length + d.thisIncomeList.length}</b></div>
+      <div class="report-line"><span>Out days (spent money)</span><b>${ds.out}</b></div>
+      <div class="report-line"><span>Home days (spent nothing)</span><b>${ds.home}</b></div>
+      <div class="report-line"><span>Days not logged</span><b>${ds.unlogged}</b></div>
+      <div class="report-line"><span>Average per out day</span><b>${fmt(ds.avg)}</b></div>
+    </div>
+    <div class="report-section">
+      <div class="report-label">BY CATEGORY</div>
+      ${catLines || '<div class="report-line"><span>No entries yet</span><b></b></div>'}
+    </div>
+  `;
+}
+
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
+function exportCSV() {
+  const rows = [['Date','Type','Category','Detail','Note','Need/Want','Amount (PHP)','Effect','Running Balance']];
+  const combined = [
+    ...expenses.map(e => ({
+      date: e.date, ts: e.ts, type: 'Expense', category: CAT_LABELS[e.category],
+      detail: e.subtype || '', note: e.note || '', flag: e.flag === 'need' ? 'Need' : e.flag === 'want' ? 'Want' : '', amount: e.amount, effect: -e.amount
+    })),
+    ...incomes.map(i => ({
+      date: i.date, ts: i.ts, type: 'Income', category: i.source,
+      detail: '', note: i.note || '', amount: i.amount, effect: i.amount
+    })),
+    ...transactionsLog.map(t => ({
+      date: t.date, ts: t.ts, type: TX_TYPE_LABELS[t.type] || t.type,
+      category: TX_TYPE_TARGET[t.type] || '', detail: '', note: '',
+      amount: t.amount, effect: t.type === 'debt_pay_out' ? -t.amount : t.amount
+    })),
+    ...homeDays.filter(ds => !hasSpend(ds)).map(ds => ({
+      date: ds, ts: 0, type: 'Home day', category: '', detail: 'No spend', note: '', amount: 0, effect: 0
+    })),
+    ...debts.map(d => ({
+      date: d.date, ts: d.ts, type: d.direction === 'owe' ? 'AP (Payable)' : 'AR (Receivable)',
+      category: d.person, detail: d.note || '', note: `Remaining: ${fmt(d.amount)}`,
+      amount: d.originalAmount, effect: 0
+    }))
+  ].sort((a,b) => a.date.localeCompare(b.date) || (a.ts||0) - (b.ts||0));
+
+  let runningBalance = 0;
+  combined.forEach(r => {
+    runningBalance += r.effect;
+    rows.push([r.date, r.type, r.category, r.detail, r.note, r.flag || '', r.amount.toFixed(2), (r.effect >= 0 ? '+' : '') + r.effect.toFixed(2), runningBalance.toFixed(2)]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'expense-ledger.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadPdfReport() {
+  if (!window.jspdf) { showToast('PDF library still loading — try again in a moment.', false); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const marginX = 42;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const contentW = pageWidth - marginX * 2;
+  const TOP_MARGIN = 64;
+  const BOTTOM_MARGIN = 56;
+  let y = TOP_MARGIN;
+
+  // jsPDF's built-in fonts can't render the ₱ glyph (renders as a broken
+  // character), so the PDF uses a plain "PHP" prefix instead of fmt()'s ₱.
+  function fmtPdf(n) { return 'PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  // Palette matched to the app's own theme
+  const INK    = [26, 26, 23];     // #1A1A17
+  const MUTED  = [138, 135, 120];  // #8A8778
+  const RED    = [166, 58, 46];    // #A63A2E — AP / outflow
+  const GREEN  = [79, 106, 74];    // #4F6A4A — AR / inflow
+  const BORDER = [201, 198, 185];  // #C9C6B9
+  const ROWBG  = [246, 245, 240];  // zebra stripe
+  const BANDBG = [26, 26, 23];     // header band
+
+  function setColor(c) { doc.setTextColor(c[0], c[1], c[2]); }
+  function setFill(c) { doc.setFillColor(c[0], c[1], c[2]); }
+  function setDraw(c) { doc.setDrawColor(c[0], c[1], c[2]); }
+
+  function newPage() { doc.addPage(); y = TOP_MARGIN; }
+  function ensureSpace(next) { if (y + next > pageHeight - BOTTOM_MARGIN) newPage(); }
+
+  function sectionHeader(text) {
+    ensureSpace(28);
+    setFill(INK); doc.rect(marginX, y - 11, 3, 13, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); setColor(INK);
+    doc.text(text.toUpperCase(), marginX + 10, y);
+    y += 8;
+    setDraw(BORDER); doc.setLineWidth(0.75);
+    doc.line(marginX, y, pageWidth - marginX, y);
+    y += 16;
+  }
+
+  function tableHead(cols, widths) {
+    ensureSpace(18);
+    setFill(ROWBG); doc.rect(marginX, y - 10, contentW, 16, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); setColor(MUTED);
+    let x = marginX + 6;
+    cols.forEach((c, i) => { doc.text(String(c).toUpperCase(), x, y); x += widths[i]; });
+    y += 14;
+  }
+
+  function row(cols, widths, opts) {
+    opts = opts || {};
+    ensureSpace(15);
+    if (opts.zebra) { setFill(ROWBG); doc.rect(marginX, y - 9.5, contentW, 14.5, 'F'); }
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    doc.setFontSize(9);
+    let x = marginX + 6;
+    cols.forEach((c, i) => {
+      const col = (opts.colors && opts.colors[i]) || INK;
+      setColor(col);
+      doc.text(String(c), x, y, { maxWidth: widths[i] - 8 });
+      x += widths[i];
+    });
+    y += 14.5;
+  }
+
+  function emptyRow(text, widths) {
+    ensureSpace(15);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); setColor(MUTED);
+    doc.text(text, marginX + 6, y);
+    y += 14.5;
+  }
+
+  const d = buildMonthlyReportData(0);
+  const apTotal = debts.filter(x => x.direction === 'owe').reduce((s, x) => s + x.amount, 0);
+  const arTotal = debts.filter(x => x.direction === 'owed').reduce((s, x) => s + x.amount, 0);
+  const netIsGood = d.net >= 0;
+
+  // ---- Header band ----
+  setFill(BANDBG); doc.rect(0, 0, pageWidth, 46, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); setColor([255, 255, 255]);
+  doc.text('EXPENSE LEDGER', marginX, 29);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); setColor([201, 198, 185]);
+  doc.text('MONTHLY REPORT', marginX, 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); setColor([230, 229, 222]);
+  doc.text(monthName(0), pageWidth - marginX, 29, { align: 'right' });
+  doc.text('generated ' + new Date().toLocaleDateString('en-US'), pageWidth - marginX, 40, { align: 'right' });
+  y = TOP_MARGIN;
+
+  // ---- At-a-glance takeaway: one sentence the reader sees first ----
+  const glanceColor = netIsGood ? GREEN : RED;
+  let glance = `${netIsGood ? 'Net saved' : 'Net shortfall'} of ${fmtPdf(Math.abs(d.net))} this month`;
+  const owedNotes = [];
+  if (apTotal > 0) owedNotes.push(`${fmtPdf(apTotal)} payable`);
+  if (arTotal > 0) owedNotes.push(`${fmtPdf(arTotal)} receivable`);
+  if (owedNotes.length) glance += ` — ${owedNotes.join(', ')} outstanding`;
+  setFill(ROWBG); doc.rect(marginX, y - 13, contentW, 26, 'F');
+  setFill(glanceColor); doc.rect(marginX, y - 13, 3, 26, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); setColor(INK);
+  doc.text(glance, marginX + 14, y + 3);
+  y += 34;
+
+  // ---- Summary (Net is the hero figure; income/expenses are supporting stats) ----
+  sectionHeader('Summary');
+  const cardH = 62;
+  setFill(ROWBG); doc.roundedRect(marginX, y - 12, contentW, cardH, 3, 3, 'F');
+  const heroW = contentW * 0.42;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); setColor(MUTED);
+  doc.text((netIsGood ? 'NET SAVED' : 'NET SHORTFALL'), marginX + 14, y + 4);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(21); setColor(glanceColor);
+  doc.text(fmtPdf(Math.abs(d.net)), marginX + 14, y + 32);
+
+  setDraw(BORDER); doc.setLineWidth(0.75);
+  doc.line(marginX + heroW, y - 12 + 8, marginX + heroW, y - 12 + cardH - 8);
+
+  const subX = marginX + heroW + 20;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); setColor(MUTED);
+  doc.text('TOTAL INCOME', subX, y + 2);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); setColor(GREEN);
+  doc.text(fmtPdf(d.incomeTotal), subX, y + 17);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); setColor(MUTED);
+  doc.text('TOTAL EXPENSES', subX, y + 33);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); setColor(RED);
+  doc.text(fmtPdf(d.thisTotal), subX, y + 48);
+  y += cardH + 8;
+
+  if (budget > 0) {
+    const overBudget = d.thisTotal > budget;
+    row(['Monthly budget', fmtPdf(budget)], [contentW - 140, 140]);
+    row([overBudget ? 'Over budget by' : 'Remaining budget', fmtPdf(Math.abs(budget - d.thisTotal))], [contentW - 140, 140], { colors: [INK, overBudget ? RED : GREEN], bold: true });
+  }
+  {
+    const nowD = new Date();
+    const ms = monthDayStats(nowD.getFullYear(), nowD.getMonth());
+    const dW = [contentW - 140, 140];
+    row(['Out days (spent money)', String(ms.out)], dW);
+    row(['Home days (spent nothing)', String(ms.home)], dW);
+    row(['Days not logged', String(ms.unlogged)], dW, { colors: [INK, ms.unlogged ? RED : INK] });
+    row(['Average spend per out day', fmtPdf(ms.avg)], dW, { bold: true });
+  }
+  y += 16;
+
+  // ---- By category ----
+  sectionHeader('By Category');
+  const catW = [contentW - 240, 120, 120];
+  tableHead(['Category', 'Amount', '% of spend'], catW);
+  if (d.catEntries.length === 0) { emptyRow('No expenses this month', catW); }
+  d.catEntries.forEach(([c, amt], i) => {
+    row([CAT_LABELS[c], fmtPdf(amt), (amt / d.thisTotal * 100).toFixed(0) + '%'], catW, { zebra: i % 2 === 1, colors: [INK, RED, MUTED] });
+  });
+  y += 16;
+
+  // ---- AP / AR (accounts payable & receivable) ----
+  sectionHeader('Accounts Payable & Receivable (AP/AR)');
+  setFill(ROWBG); doc.roundedRect(marginX, y - 10, contentW, 40, 3, 3, 'F');
+  const apArColW = contentW / 2;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); setColor(MUTED);
+  doc.text('AP — PAYABLE (YOU OWE)', marginX + 14, y + 3);
+  doc.text('AR — RECEIVABLE (OWED TO YOU)', marginX + apArColW + 14, y + 3);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); setColor(RED);
+  doc.text(fmtPdf(apTotal), marginX + 14, y + 20);
+  setColor(GREEN);
+  doc.text(fmtPdf(arTotal), marginX + apArColW + 14, y + 20);
+  y += 44;
+
+  const apArW = [110, 40, contentW - 110 - 40 - 110, 110];
+  tableHead(['Person / Place', 'Type', 'Note', 'Balance'], apArW);
+  const openEntries = [...debts].sort((a, b) => a.direction.localeCompare(b.direction) || a.date.localeCompare(b.date));
+  if (openEntries.length === 0) { emptyRow('No open AP/AR entries', apArW); }
+  openEntries.forEach((x, i) => {
+    const isAP = x.direction === 'owe';
+    row(
+      [x.person, isAP ? 'AP' : 'AR', x.note || '—', (isAP ? '-' : '+') + fmtPdf(x.amount)],
+      apArW,
+      { zebra: i % 2 === 1, colors: [INK, isAP ? RED : GREEN, MUTED, isAP ? RED : GREEN], bold: false }
+    );
+  });
+  y += 16;
+
+  // ---- Transactions this month ----
+  sectionHeader('Transactions This Month');
+  const txW = [65, 62, contentW - 65 - 62 - 100, 100];
+  tableHead(['Date', 'Type', 'Detail', 'Amount'], txW);
+  const combined = [
+    ...d.thisList.map(e => ({ date: e.date, ts: e.ts, type: 'Expense', detail: itemLabel(e) + (e.note ? (' — ' + e.note) : ''), amount: '-' + fmtPdf(e.amount), out: true })),
+    ...d.thisIncomeList.map(i => ({ date: i.date, ts: i.ts, type: 'Income', detail: i.source + (i.note ? (' — ' + i.note) : ''), amount: '+' + fmtPdf(i.amount), out: false }))
+  ].sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0));
+  if (combined.length === 0) { emptyRow('No transactions this month', txW); }
+  combined.forEach((r, i) => {
+    row([r.date, r.type, r.detail, r.amount], txW, { zebra: i % 2 === 1, colors: [INK, MUTED, INK, r.out ? RED : GREEN] });
+  });
+
+  // ---- Footer with page numbers on every page ----
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    setDraw(BORDER); doc.setLineWidth(0.5);
+    doc.line(marginX, pageHeight - 34, pageWidth - marginX, pageHeight - 34);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); setColor(MUTED);
+    doc.text('Expense Ledger — Monthly Report', marginX, pageHeight - 22);
+    doc.text(`Page ${p} of ${totalPages}`, pageWidth - marginX, pageHeight - 22, { align: 'right' });
+  }
+
+  doc.save(`ledger-report-${curMonthKeyStr()}.pdf`);
+}
+
+async function exportBackupJSON() {
+  const backup = {
+    version: 4, exportedAt: new Date().toISOString(),
+    expenses, incomes, recurringTemplates, transactionsLog, debts, budget, catLimits, weekdayBudgets, bankBalance, pettyCash, homeDays, savingsLog, goalCfg, stepsDone
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `ledger-backup-${todayISO()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  try { localStorage.setItem('ledger:lastBackup', String(Date.now())); } catch (e) {}
+  updateBackupBadge();
+}
+
+function importBackupJSON(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch (e) { showToast('That file is not valid backup JSON.', false); return; }
+    if (!data || !Array.isArray(data.expenses) || !Array.isArray(data.transactionsLog)) {
+      showToast('That file does not look like a ledger backup.', false); return;
+    }
+    if (!confirm('This will REPLACE all current data (expenses, income, home days, transactions, AP/AR, budgets, balances) with the contents of this backup. Continue?')) return;
+    expenses = data.expenses || [];
+    incomes = Array.isArray(data.incomes) ? data.incomes : [];
+    recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
+    transactionsLog = data.transactionsLog || [];
+    debts = Array.isArray(data.debts) ? data.debts : [];
+    budget = typeof data.budget === 'number' ? data.budget : 0;
+    catLimits = data.catLimits || {};
+    weekdayBudgets = Array.isArray(data.weekdayBudgets) && data.weekdayBudgets.length === 7 ? data.weekdayBudgets : weekdayBudgets;
+    bankBalance = typeof data.bankBalance === 'number' ? data.bankBalance : 0;
+    pettyCash = typeof data.pettyCash === 'number' ? data.pettyCash : 0;
+    homeDays = Array.isArray(data.homeDays) ? data.homeDays.filter(x => typeof x === 'string') : [];
+    savingsLog = Array.isArray(data.savingsLog) ? data.savingsLog : [];
+    goalCfg = Object.assign({ monthly: 600, buffer: 1200 }, data.goalCfg || {});
+    stepsDone = data.stepsDone && typeof data.stepsDone === 'object' ? data.stepsDone : {};
+    await Promise.all([saveSavings(), saveGoalCfg(), saveSteps(), saveHomeDays(), saveExpenses(), saveIncomes(), saveRecurringTemplates(), saveTransactionsLog(), saveDebts(), saveBudget(), saveLimits(), saveWeekdayBudgets(), saveBankBalance(), savePettyCash()]);
+    $('budgetInput').value = budget || '';
+    renderWeekdayBudgetInputs();
+    render();
+    showToast('Backup restored.', false);
+  };
+  reader.readAsText(file);
+}
+
+$('categoryInput').addEventListener('change', toggleCategoryRows);
+$('amountInput').addEventListener('keydown', e => { if (e.key === 'Enter') addExpense(); });
+$('otherNote').addEventListener('keydown', e => { if (e.key === 'Enter') addExpense(); });
+$('noteInput').addEventListener('keydown', e => { if (e.key === 'Enter') addExpense(); });
+$('addExpenseBtn').addEventListener('click', addExpense);
+$('homeDayBtn').addEventListener('click', () => markHomeDay($('dateInput').value || todayISO()));
+$('trendRangeToggle').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+  trendRange = parseInt(b.dataset.range, 10) || 7;
+  $('trendRangeToggle').querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === b));
+  render();
+}));
+$('incomeAmountInput').addEventListener('keydown', e => { if (e.key === 'Enter') addIncome(); });
+$('incomeNoteInput').addEventListener('keydown', e => { if (e.key === 'Enter') addIncome(); });
+$('setBudgetBtn').addEventListener('click', () => { budget = parseFloat($('budgetInput').value) || 0; saveBudget(); render(); });
+$('toggleWbBtn').addEventListener('click', () => {
+  const panel = $('calWbPanel');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  $('toggleWbBtn').textContent = isHidden ? 'HIDE WEEKDAY BUDGETS ▴' : 'EDIT WEEKDAY BUDGETS ▾';
+});
+$('setWeekdayBudgetBtn').addEventListener('click', () => {
+  for (let i = 0; i < 7; i++) { weekdayBudgets[i] = parseFloat($('wb_' + i).value) || 0; }
+  saveWeekdayBudgets();
+  render();
+});
+function logTransaction(type, amount) {
+  transactionsLog.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), type, amount, date: todayISO(), ts: Date.now() });
+  saveTransactionsLog();
+}
+
+$('bankGoBtn').addEventListener('click', () => {
+  const action = $('bankActionSelect').value;
+  const v = parseFloat($('bankAdjustInput').value);
+  if (action === 'set') {
+    if (isNaN(v)) return;
+    const delta = v - bankBalance;
+    bankBalance = v; saveBankBalance();
+    if (Math.abs(delta) > 0.004) { logTransaction('adjust_bank', delta); showToast(`Bank reconciled: ${delta>=0?'+':''}${fmt(delta)} drift recorded.`, false); }
+  } else if (action === 'deposit') {
+    if (isNaN(v) || v <= 0) return;
+    bankBalance += v; saveBankBalance(); logTransaction('deposit', v);
+  } else if (action === 'withdraw') {
+    if (isNaN(v) || v <= 0) return;
+    if (v > bankBalance && !confirm(`This will take Bank to ${fmt(bankBalance - v)} (negative). Continue?`)) return;
+    bankBalance -= v; pettyCash += v;
+    saveBankBalance(); savePettyCash(); logTransaction('withdraw', v);
+  }
+  $('bankAdjustInput').value = ''; render();
+});
+$('cashGoBtn').addEventListener('click', () => {
+  const action = $('cashActionSelect').value;
+  const v = parseFloat($('cashAdjustInput').value);
+  if (action === 'set') {
+    if (isNaN(v)) return;
+    const delta = v - pettyCash;
+    pettyCash = v; savePettyCash();
+    if (Math.abs(delta) > 0.004) { logTransaction('adjust_cash', delta); showToast(`Cash reconciled: ${delta>=0?'+':''}${fmt(delta)} drift recorded.`, false); }
+  } else if (action === 'topup') {
+    if (isNaN(v) || v <= 0) return;
+    pettyCash += v; savePettyCash(); logTransaction('topup', v);
+  }
+  $('cashAdjustInput').value = ''; render();
+});
+$('exportJsonBtn').addEventListener('click', exportBackupJSON);
+$('importJsonBtn').addEventListener('click', () => $('importJsonFile').click());
+$('importJsonFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) importBackupJSON(file);
+  e.target.value = '';
+});
+$('searchInput').addEventListener('input', e => { searchTerm = e.target.value; render(); });
+$('tabExpenseBtn').addEventListener('click', () => switchTab('expense'));
+$('tabIncomeBtn').addEventListener('click', () => switchTab('income'));
+$('addIncomeBtn').addEventListener('click', addIncome);
+$('addDebtBtn').addEventListener('click', addDebt);
+$('debtAmountInput').addEventListener('keydown', e => { if (e.key === 'Enter') addDebt(); });
+$('debtPersonInput').addEventListener('keydown', e => { if (e.key === 'Enter') addDebt(); });
+$('debtNoteInput').addEventListener('keydown', e => { if (e.key === 'Enter') addDebt(); });
+$('exportBtn').addEventListener('click', exportCSV);
+$('pdfReportBtn').addEventListener('click', downloadPdfReport);
+$('reportBtn').addEventListener('click', () => {
+  const panel = $('reportPanel');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) { renderReport(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+});
+$('archiveBtn').addEventListener('click', () => {
+  const cutoff = monthKey(-1);
+  const cutoffStr = `${cutoff.y}-${String(cutoff.m + 1).padStart(2, '0')}-01`;
+  const removable = expenses.filter(e => e.date < cutoffStr).length;
+  if (removable === 0) { showToast('Nothing to clear.', false); return; }
+  if (!confirm(`Delete ${removable} expense entr${removable === 1 ? 'y' : 'ies'} from before last month? This cannot be undone. Download a backup first if unsure.`)) return;
+  expenses = expenses.filter(e => e.date >= cutoffStr);
+  homeDays = homeDays.filter(d => d >= cutoffStr);
+  saveExpenses(); saveHomeDays(); render();
+  showToast(`${removable} old entries cleared.`, false);
+});
+$('calPrev').addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+$('calNext').addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+// Phone apps stay open overnight: refresh the date fields when a new day starts.
+let lastSeenDay = todayISO();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  const today = todayISO();
+  if (today === lastSeenDay) return;
+  lastSeenDay = today;
+  setDateline();
+  $('dateInput').value = today; $('incomeDateInput').value = today; $('debtDateInput').value = today;
+  await applyDueRecurringTemplates();
+  render();
+});
+
+function saveSavings() { return persist(SAVINGS_KEY, savingsLog); }
+function saveGoalCfg() { return persist(GOALCFG_KEY, goalCfg); }
+function saveSteps() {
+  const keep = Object.keys(stepsDone).sort().slice(-14);
+  const next = {}; keep.forEach(k => { next[k] = stepsDone[k]; });
+  stepsDone = next;
+  return persist(STEPS_KEY, stepsDone);
+}
+
+function stepList() {
+  const ap = debts.filter(d => d.direction === 'owe').reduce((s, d) => s + d.amount, 0);
+  return [
+    { id: 'split', t: 'Split your allowance first', d: '₱30 aside · ₱30 transport · ₱90 food' },
+    ap > 0
+      ? { id: 'save', t: 'Pay ₱30 toward your ' + fmtShort(ap) + ' debt', d: 'Open More ▾ → AP/AR and tap PAY' }
+      : { id: 'save', t: 'Set aside ₱30 to savings', d: 'Use the Set money aside box' },
+    { id: 'ride', t: 'Take the jeep or UV first', d: 'Move It only when you are late' },
+    { id: 'log', t: 'Log every expense tonight', d: 'Include load, fees and snacks' }
+  ];
+}
+
+function renderGoals() {
+  const mk = curMonthKeyStr();
+  const total = savingsLog.reduce((s, x) => s + x.amount, 0);
+  const month = savingsLog.filter(x => x.date.slice(0, 7) === mk).reduce((s, x) => s + x.amount, 0);
+  const ap = debts.filter(d => d.direction === 'owe');
+  const apLeft = ap.reduce((s, d) => s + d.amount, 0);
+  const apOrig = ap.reduce((s, d) => s + (d.originalAmount || d.amount), 0);
+  const pct = (a, b) => b > 0 ? Math.min(100, a / b * 100) : 0;
+  const cards = [
+    { n: 'Clear your debt', big: apOrig > 0 ? fmtShort(apLeft) + ' left' : 'Debt-free', sub: apOrig > 0 ? fmtShort(apOrig - apLeft) + ' of ' + fmtShort(apOrig) + ' paid' : 'No open payables', p: apOrig > 0 ? pct(apOrig - apLeft, apOrig) : 100 },
+    { n: 'Save this month', big: fmtShort(month), sub: 'of ' + fmtShort(goalCfg.monthly) + ' target', p: pct(month, goalCfg.monthly) },
+    { n: 'Build your buffer', big: fmtShort(total), sub: 'of ' + fmtShort(goalCfg.buffer) + ' (1-2 weeks of spending)', p: pct(total, goalCfg.buffer) }
+  ];
+  $('goalCards').innerHTML = cards.map(c => `<div class="gcard ${c.p >= 100 ? 'met' : ''}"><div class="gn">${c.n}</div><div class="gb">${c.big}</div><div class="gbar"><i style="width:${c.p}%"></i></div><div class="gs">${c.sub}</div></div>`).join('');
+  $('gSaved').textContent = fmtShort(total);
+
+  const done = stepsDone[todayISO()] || [];
+  const steps = stepList();
+  $('stepsList').innerHTML = steps.map(st => `<button type="button" class="step ${done.includes(st.id) ? 'done' : ''}" data-step="${st.id}" aria-pressed="${done.includes(st.id)}"><span class="tick"></span><span><b>${st.t}</b><small>${st.d}</small></span></button>`).join('');
+  $('stepsList').querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
+    const k = todayISO(); const cur = stepsDone[k] || [];
+    stepsDone[k] = cur.includes(b.dataset.step) ? cur.filter(x => x !== b.dataset.step) : cur.concat(b.dataset.step);
+    saveSteps(); renderGoals();
+  }));
+  const n = steps.filter(st => done.includes(st.id)).length;
+  $('stepsFoot').textContent = n === steps.length ? 'All steps done today.' : n + ' of ' + steps.length + ' done today';
+
+  $('saveHistory').innerHTML = savingsLog.slice(0, 4).map(x => `<div class="sv-row"><span>${x.date} · ${fmt(x.amount)}</span><button class="icon-btn danger" data-delsv="${x.id}" aria-label="Remove savings entry">&times;</button></div>`).join('');
+  $('saveHistory').querySelectorAll('[data-delsv]').forEach(b => b.addEventListener('click', () => {
+    const i = savingsLog.findIndex(x => x.id === b.dataset.delsv);
+    if (i === -1) return;
+    pettyCash += savingsLog[i].amount; savingsLog.splice(i, 1);
+    savePettyCash(); saveSavings(); render();
+    showToast('Savings entry removed. Cash returned to Petty Cash.', false);
+  }));
+  if (document.activeElement !== $('gMonthly')) $('gMonthly').value = goalCfg.monthly || '';
+  if (document.activeElement !== $('gBuffer')) $('gBuffer').value = goalCfg.buffer || '';
+}
+
+function addSavings() {
+  const v = parseFloat($('saveAmt').value);
+  if (isNaN(v) || v <= 0) { showToast('Enter an amount above ₱0.', false); return; }
+  if (v > pettyCash && !confirm(`Petty Cash is ${fmt(pettyCash)}. Setting aside ${fmt(v)} will bring it to ${fmt(pettyCash - v)} (negative). Continue?`)) return;
+  savingsLog.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), amount: v, date: todayISO(), ts: Date.now() });
+  pettyCash -= v; savePettyCash(); saveSavings();
+  $('saveAmt').value = '';
+  render();
+  showToast(fmt(v) + ' set aside.', false);
+}
+$('saveBtn').addEventListener('click', addSavings);
+$('saveAmt').addEventListener('keydown', e => { if (e.key === 'Enter') addSavings(); });
+$('gSaveCfg').addEventListener('click', () => {
+  goalCfg.monthly = parseFloat($('gMonthly').value) || 0;
+  goalCfg.buffer = parseFloat($('gBuffer').value) || 0;
+  saveGoalCfg(); render(); showToast('Targets saved.', false);
+});
+
+// ---------- v4: Need/Want, category limits, Journal ----------
+const FLAG_LABEL = { need: 'NEED', want: 'WANT' };
+
+function syncFlagSeg() {
+  document.querySelectorAll('#flagSeg .seg-btn').forEach(b => {
+    const on = b.dataset.flag === newFlag;
+    b.classList.toggle('on-need', on && b.dataset.flag === 'need');
+    b.classList.toggle('on-want', on && b.dataset.flag === 'want');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+document.querySelectorAll('#flagSeg .seg-btn').forEach(b => b.addEventListener('click', () => {
+  newFlag = (newFlag === b.dataset.flag) ? '' : b.dataset.flag;
+  syncFlagSeg();
+}));
+
+function flagBtnHtml(e) {
+  const f = e.flag || '';
+  return `<button type="button" class="flag-btn ${f || 'none'}" data-flagcycle="${e.id}" aria-label="Need or want tag, currently ${f || 'not tagged'}. Tap to change.">${f ? FLAG_LABEL[f] : 'TAG'}</button>`;
+}
+function cycleFlag(id) {
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  e.flag = !e.flag ? 'need' : (e.flag === 'need' ? 'want' : '');
+  saveExpenses(); render();
+}
+
+function monthUsedByCat(mk) {
+  const used = {};
+  expenses.forEach(e => { if (e.date.slice(0, 7) === mk) used[e.category] = (used[e.category] || 0) + e.amount; });
+  return used;
+}
+
+// Called right after an expense is added (it is already in `expenses`).
+function limitWarning(cat, dateStr, amount) {
+  const limit = catLimits[cat] || 0;
+  if (!(limit > 0)) return '';
+  const after = monthUsedByCat(dateStr.slice(0, 7))[cat] || 0;
+  const before = after - amount;
+  const name = CAT_LABELS[cat];
+  if (after > limit) return before > limit ? `Over ${name} limit by ${fmtShort(after - limit)}.` : `${name} limit passed: ${fmtShort(after)} of ${fmtShort(limit)}.`;
+  if (after >= limit) return `${name} limit reached: ${fmtShort(after)} of ${fmtShort(limit)}.`;
+  if (after >= limit * 0.8 && before < limit * 0.8) return `${name} is at ${Math.round(after / limit * 100)}% of its ${fmtShort(limit)} limit.`;
+  return '';
+}
+
+function renderLimits() {
+  const used = monthUsedByCat(curMonthKeyStr());
+  $('limitRows').innerHTML = Object.keys(CATS).map(cat => {
+    const u = used[cat] || 0, lim = catLimits[cat] || 0;
+    const p = lim > 0 ? u / lim * 100 : 0;
+    const cls = p >= 100 ? 'over' : p >= 80 ? 'warn' : '';
+    let msg = '';
+    if (lim > 0) msg = u > lim ? `Over by ${fmtShort(u - lim)}` : u === lim ? 'Limit reached' : p >= 80 ? `${fmtShort(lim - u)} left, ${Math.round(p)}% used` : `${fmtShort(lim - u)} left`;
+    else if (u > 0) msg = 'No limit set';
+    return `<div class="lim-row">
+      <div class="lim-top">
+        <div class="lim-name">${CAT_LABELS[cat]}</div>
+        <div class="lim-used">${fmtShort(u)}${lim > 0 ? ' of ' + fmtShort(lim) : ''}</div>
+        <input type="number" class="cat-limit" data-limit="${cat}" min="0" step="1" placeholder="limit" value="${lim || ''}" aria-label="${CAT_LABELS[cat]} monthly limit">
+      </div>
+      ${lim > 0 ? `<div class="bar-track" style="margin-top:0;"><div class="bar-fill ${cls}" style="width:${Math.min(100, p)}%"></div></div>` : ''}
+      ${msg ? `<div class="lim-msg ${cls}">${msg}</div>` : ''}
+    </div>`;
+  }).join('');
+  $('limitRows').querySelectorAll('[data-limit]').forEach(inp => {
+    inp.addEventListener('change', () => { catLimits[inp.dataset.limit] = parseFloat(inp.value) || 0; saveLimits(); render(); });
+  });
+}
+
+function updateLimitNote() {
+  const used = monthUsedByCat(curMonthKeyStr());
+  const over = [], near = [];
+  Object.keys(catLimits).forEach(cat => {
+    const lim = catLimits[cat];
+    if (!(lim > 0) || !CATS[cat]) return;
+    const u = used[cat] || 0, p = u / lim * 100;
+    if (p >= 100) over.push(`${CAT_LABELS[cat]} ${fmtShort(u)} of ${fmtShort(lim)}`);
+    else if (p >= 80) near.push(`${CAT_LABELS[cat]} ${Math.round(p)}%`);
+  });
+  const el = $('homeLimitNote');
+  if (!over.length && !near.length) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = (over.length ? 'Over limit: ' + over.join(', ') + '. ' : '') + (near.length ? 'Near limit: ' + near.join(', ') + '.' : '');
+}
+$('homeLimitNote').addEventListener('click', () => showView('insights'));
+
+function nwTotals(list) {
+  const t = { need: 0, want: 0, none: 0, nNone: 0 };
+  list.forEach(e => {
+    if (e.flag === 'need') t.need += e.amount;
+    else if (e.flag === 'want') t.want += e.amount;
+    else { t.none += e.amount; t.nNone++; }
+  });
+  t.tagged = t.need + t.want;
+  return t;
+}
+function renderNeedWant() {
+  const cur = nwTotals(expenses.filter(e => isInMonth(e.date, 0)));
+  const prev = nwTotals(expenses.filter(e => isInMonth(e.date, -1)));
+  const el = $('nwBody');
+  const total = cur.tagged + cur.none;
+  if (total <= 0) { el.innerHTML = '<div class="nw-empty">No expenses this month yet.</div>'; return; }
+  if (cur.tagged <= 0) {
+    el.innerHTML = `<div class="nw-empty">${cur.nNone} expense${cur.nNone === 1 ? ' is' : 's are'} not tagged yet. Pick Need or Want when adding, or tap TAG on any entry (past ones too) to see your ratio.</div>`;
+    return;
+  }
+  const np = Math.round(cur.need / cur.tagged * 100), wp = 100 - np;
+  const w = v => (v / total * 100).toFixed(2) + '%';
+  let html = `<div class="nw-bar" role="img" aria-label="${np}% needs, ${wp}% wants of tagged spending">
+      <i style="width:${w(cur.need)};background:#4F6A4A"></i><i style="width:${w(cur.want)};background:#C97B3E"></i></div>
+    <div class="nw-line"><span><span class="nw-dot" style="background:#4F6A4A"></span>Needs (${np}%)</span><b>${fmt(cur.need)}</b></div>
+    <div class="nw-line"><span><span class="nw-dot" style="background:#C97B3E"></span>Wants (${wp}%)</span><b>${fmt(cur.want)}</b></div>`;
+  if (cur.nNone > 0) html += `<div class="nw-line"><span><span class="nw-dot" style="background:#E7E5DD;border:1px solid #B5B2A3"></span>Not tagged (${cur.nNone})</span><b>${fmt(cur.none)}</b></div>`;
+  if (prev.tagged > 0) {
+    const pn = Math.round(prev.need / prev.tagged * 100);
+    html += `<div class="nw-note">Last month: ${pn}% needs, ${100 - pn}% wants.</div>`;
+  }
+  html += `<div class="nw-note">Percentages use tagged expenses only.</div>`;
+  el.innerHTML = html;
+}
+
+// ---- Journal: entries are derived from existing records, so past transactions are included ----
+const JE_OPEN = '0000-00-00';
+function expAcct(cat) { return (CAT_LABELS[cat] || cat || 'Other') + ' Expense'; }
+function jeLines(kind, x) {
+  if (kind === 'expense') return [{ a: expAcct(x.category), dr: x.amount }, { a: 'Cash', cr: x.amount }];
+  if (kind === 'income') return [{ a: 'Cash', dr: x.amount }, { a: (x.source || 'Allowance') + ' Income', cr: x.amount }];
+  if (kind === 'savings') return [{ a: 'Savings', dr: x.amount }, { a: 'Cash', cr: x.amount }];
+  if (kind === 'debt') {
+    const v = x.originalAmount != null ? x.originalAmount : x.amount;
+    return x.direction === 'owe'
+      ? [{ a: 'Suspense', dr: v }, { a: 'Accounts Payable', cr: v }]
+      : [{ a: 'Accounts Receivable', dr: v }, { a: 'Suspense', cr: v }];
+  }
+  const amt = Math.abs(x.amount);
+  switch (x.type) {
+    case 'deposit': return [{ a: 'Bank', dr: amt }, { a: "Owner's Capital", cr: amt }];
+    case 'topup': return [{ a: 'Cash', dr: amt }, { a: "Owner's Capital", cr: amt }];
+    case 'withdraw': return [{ a: 'Cash', dr: amt }, { a: 'Bank', cr: amt }];
+    case 'debt_pay_out': return [{ a: 'Accounts Payable', dr: amt }, { a: 'Cash', cr: amt }];
+    case 'debt_pay_in': return [{ a: 'Cash', dr: amt }, { a: 'Accounts Receivable', cr: amt }];
+    case 'adjust_bank': return x.amount >= 0 ? [{ a: 'Bank', dr: amt }, { a: 'Cash Over/Short', cr: amt }] : [{ a: 'Cash Over/Short', dr: amt }, { a: 'Bank', cr: amt }];
+    case 'adjust_cash': return x.amount >= 0 ? [{ a: 'Cash', dr: amt }, { a: 'Cash Over/Short', cr: amt }] : [{ a: 'Cash Over/Short', dr: amt }, { a: 'Cash', cr: amt }];
+  }
+  return [];
+}
+function drCrText(lines) {
+  const d = lines.filter(l => l.dr).map(l => 'Dr ' + l.a).join(', ');
+  const c = lines.filter(l => l.cr).map(l => 'Cr ' + l.a).join(', ');
+  return d + ' / ' + c;
+}
+function jeLineHtml(kind, x) {
+  const ls = jeLines(kind, x);
+  return ls.length ? `<div class="je-line">${escapeHtml(drCrText(ls))}</div>` : '';
+}
+
+function buildJournal() {
+  const L = [];
+  const add = (key, date, ts, desc, tag, tagCls, lines) => { if (lines.length) L.push({ key, date, ts: ts || 0, desc, tag, tagCls, lines }); };
+  expenses.forEach(e => add('e' + e.id, e.date, e.ts, itemLabel(e) + (e.note ? ' — ' + e.note : ''), 'EXPENSE', '', jeLines('expense', e)));
+  incomes.forEach(i => add('i' + i.id, i.date, i.ts, i.source + (i.note ? ' — ' + i.note : ''), 'INCOME', 'inflow', jeLines('income', i)));
+  transactionsLog.forEach(t => add('t' + t.id, t.date, t.ts, TX_TYPE_LABELS[t.type] || t.type, 'BANK', 'transfer', jeLines('log', t)));
+  debts.forEach(d => add('d' + d.id, d.date, d.ts, (d.direction === 'owe' ? 'Payable recorded: ' : 'Receivable recorded: ') + d.person + (d.note ? ' — ' + d.note : ''), d.direction === 'owe' ? 'AP' : 'AR', d.direction === 'owe' ? '' : 'inflow', jeLines('debt', d)));
+  savingsLog.forEach(sv => add('s' + sv.id, sv.date, sv.ts, 'Set aside to savings', 'SAVINGS', 'adjust', jeLines('savings', sv)));
+
+  // Opening balances: bring Cash, Bank, AP and AR in line with the app's actual balances.
+  const bal = {};
+  L.forEach(j => j.lines.forEach(l => { bal[l.a] = (bal[l.a] || 0) + (l.dr || 0) - (l.cr || 0); }));
+  const apOpen = debts.filter(d => d.direction === 'owe').reduce((sum, d) => sum + d.amount, 0);
+  const arOpen = debts.filter(d => d.direction === 'owed').reduce((sum, d) => sum + d.amount, 0);
+  const targets = { 'Cash': pettyCash, 'Bank': bankBalance, 'Accounts Payable': -apOpen, 'Accounts Receivable': arOpen };
+  const ol = []; let net = 0;
+  Object.keys(targets).forEach(a => {
+    const diff = r2(targets[a] - (bal[a] || 0));
+    if (Math.abs(diff) > 0.004) { ol.push(diff > 0 ? { a, dr: diff } : { a, cr: -diff }); net += diff; }
+  });
+  if (ol.length) {
+    net = r2(net);
+    if (net > 0) ol.push({ a: 'Opening Balance Equity', cr: net });
+    else if (net < 0) ol.push({ a: 'Opening Balance Equity', dr: -net });
+    L.push({ key: 'open', date: JE_OPEN, ts: 0, desc: 'Opening balances (earlier records)', tag: 'OPENING', tagCls: 'adjust', lines: ol });
+  }
+  return L;
+}
+
+const jFmt = n => n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const TB_ASSETS = ['Cash', 'Bank', 'Savings', 'Accounts Receivable'];
+const TB_GROUPS = [
+  ['ASSETS', a => TB_ASSETS.includes(a)],
+  ['LIABILITIES', a => a === 'Accounts Payable'],
+  ['EQUITY', a => /Equity|Capital/.test(a)],
+  ['INCOME', a => / Income$/.test(a)],
+  ['EXPENSES', a => / Expense$/.test(a) || a === 'Cash Over/Short'],
+  ['OTHER', () => true]
+];
+
+function renderJournal() {
+  const all = buildJournal();
+  const mm = String(jM + 1).padStart(2, '0');
+  const start = `${jY}-${mm}-01`;
+  const end = `${jY}-${mm}-${String(new Date(jY, jM + 1, 0).getDate()).padStart(2, '0')}`;
+  $('jLabel').textContent = jAll ? 'All time' : new Date(jY, jM, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  $('jAllBtn').classList.toggle('active', jAll);
+
+  const shown = all.filter(j => jAll || (j.date >= start && j.date <= end))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts);
+  const dateOpts = jAll ? { month: 'short', day: 'numeric', year: '2-digit' } : { month: 'short', day: 'numeric' };
+  const fmtDate = d => d === JE_OPEN ? 'Opening' : new Date(d + 'T00:00:00').toLocaleDateString('en-US', dateOpts);
+  const rowHtml = l => `<div class="je-row"><div class="je-acct${l.cr ? ' cr' : ''}">${escapeHtml(l.a)}</div><div class="je-n">${l.dr ? jFmt(l.dr) : ''}</div><div class="je-n">${l.cr ? jFmt(l.cr) : ''}</div></div>`;
+
+  if (!shown.length) {
+    $('jList').innerHTML = `<div class="empty">${all.length ? 'No journal entries in this period.' : 'No entries yet. Add an expense or income and its journal entry appears here.'}</div>`;
+  } else {
+    let td = 0, tc = 0;
+    $('jList').innerHTML = shown.map(j => {
+      const lines = j.lines.slice().sort((a, b) => (b.dr ? 1 : 0) - (a.dr ? 1 : 0));
+      lines.forEach(l => { td += l.dr || 0; tc += l.cr || 0; });
+      return `<div class="je"><div class="je-head"><span class="je-date">${fmtDate(j.date)}</span><span class="je-desc">${escapeHtml(j.desc)}</span><span class="item-tag ${j.tagCls}">${j.tag}</span></div>${lines.map(rowHtml).join('')}</div>`;
+    }).join('') + `<div class="je-row je-sum"><div>Total, ${shown.length} entr${shown.length === 1 ? 'y' : 'ies'}</div><div class="je-n">${jFmt(td)}</div><div class="je-n">${jFmt(tc)}</div></div>`;
+  }
+
+  // Trial balance, cumulative up to the end of the selected month
+  const asOf = all.filter(j => jAll || j.date <= end);
+  const bal = {};
+  asOf.forEach(j => j.lines.forEach(l => { bal[l.a] = (bal[l.a] || 0) + (l.dr || 0) - (l.cr || 0); }));
+  const accts = Object.keys(bal).filter(a => Math.abs(bal[a]) > 0.004);
+  const placed = new Set();
+  let td = 0, tc = 0, html = '';
+  TB_GROUPS.forEach(([name, test]) => {
+    const list = accts.filter(a => !placed.has(a) && test(a));
+    if (!list.length) return;
+    list.forEach(a => placed.add(a));
+    list.sort((a, b) => name === 'ASSETS' ? TB_ASSETS.indexOf(a) - TB_ASSETS.indexOf(b) : a.localeCompare(b));
+    html += `<div class="tb-group">${name}</div>` + list.map(a => {
+      const n = r2(bal[a]);
+      if (n > 0) td += n; else tc += -n;
+      return `<div class="je-row"><div class="je-acct">${escapeHtml(a)}</div><div class="je-n">${n > 0 ? jFmt(n) : ''}</div><div class="je-n">${n < 0 ? jFmt(-n) : ''}</div></div>`;
+    }).join('');
+  });
+  td = r2(td); tc = r2(tc);
+  const asOfLabel = jAll ? 'TODAY' : new Date(end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+  $('tbTitle').textContent = 'TRIAL BALANCE — AS OF ' + asOfLabel;
+  if (!accts.length) { $('tbBody').innerHTML = '<div class="empty">Nothing to total yet.</div>'; return; }
+  const ok = Math.abs(td - tc) < 0.005;
+  $('tbBody').innerHTML = html +
+    `<div class="je-row je-sum"><div>Total</div><div class="je-n">${jFmt(td)}</div><div class="je-n">${jFmt(tc)}</div></div>` +
+    `<div class="tb-status ${ok ? 'ok' : 'bad'}">${ok ? 'Balanced: total debits equal total credits.' : 'Out of balance by ' + fmt(Math.abs(td - tc)) + '.'}</div>`;
+}
+$('jPrev').addEventListener('click', () => { if (jAll) jAll = false; else { jM--; if (jM < 0) { jM = 11; jY--; } } renderJournal(); });
+$('jNext').addEventListener('click', () => { if (jAll) jAll = false; else { jM++; if (jM > 11) { jM = 0; jY++; } } renderJournal(); });
+$('jAllBtn').addEventListener('click', () => { jAll = !jAll; renderJournal(); });
+
+// ---------- Sections / tabs ----------
+const VIEWS = ['home', 'add', 'insights', 'calendar', 'goals', 'journal', 'accounts'];
+function showView(name) {
+  if (!VIEWS.includes(name)) name = 'home';
+  document.querySelectorAll('.view').forEach(v => {
+    const on = v.dataset.view === name;
+    v.hidden = !on;
+    if (on) { v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); }
+  });
+  document.querySelectorAll('#tabbar .tab').forEach(b => {
+    const on = b.dataset.view === name;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  try { localStorage.setItem('ledger:lastView', name); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('#tabbar .tab').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+
+function goAddExpense() {
+  showView('add'); switchTab('expense');
+  setTimeout(() => $('amountInput').focus(), 60);
+}
+$('fab').addEventListener('click', goAddExpense);
+$('homeAddBtn').addEventListener('click', goAddExpense);
+$('homeHomeDayBtn').addEventListener('click', () => { $('dateInput').value = todayISO(); $('homeDayBtn').click(); });
+$('homeBackupNote').addEventListener('click', () => showView('accounts'));
+
+// ---------- Backup reminder ----------
+const BACKUP_DUE_DAYS = 30;
+function updateBackupBadge() {
+  let days = 0, never = false;
+  try {
+    const lb = Number(localStorage.getItem('ledger:lastBackup')) || 0;
+    let fs = Number(localStorage.getItem('ledger:firstSeen')) || 0;
+    if (!fs) { fs = Date.now(); localStorage.setItem('ledger:firstSeen', String(fs)); }
+    days = Math.floor((Date.now() - (lb || fs)) / 86400000);
+    never = !lb;
+  } catch (e) {}
+  const due = days >= BACKUP_DUE_DAYS;
+  const msg = never ? `No backup yet, and it has been ${days} days. Tap BACKUP (JSON) below.` : `Last backup was ${days} days ago. Tap BACKUP (JSON) below.`;
+  $('acctDot').hidden = !due;
+  $('backupNote').style.display = due ? 'block' : 'none';
+  $('backupNote').textContent = msg;
+  $('homeBackupNote').hidden = !due;
+  $('homeBackupNote').textContent = (never ? 'Backup due: none yet.' : `Backup due: last one ${days} days ago.`) + ' Open Accounts to download one.';
+}
+
+// ---------- Home ----------
+function renderHome() {
+  const now = new Date(), td = todayISO();
+  const spent = expenses.filter(e => e.date === td).reduce((s, e) => s + e.amount, 0);
+  const mk = curMonthKeyStr();
+  const monthSpent = expenses.filter(e => e.date.slice(0, 7) === mk).reduce((s, e) => s + e.amount, 0);
+  const monthInc = incomes.filter(i => i.date.slice(0, 7) === mk).reduce((s, i) => s + i.amount, 0);
+  const net = monthInc - monthSpent;
+  const numDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dow = now.getDay();
+  const dayBudget = weekdayBudgets[dow] > 0 ? weekdayBudgets[dow] : (budget > 0 ? budget / numDays : 0);
+
+  const big = $('homeToday');
+  big.textContent = (spent <= 0 && homeDays.includes(td)) ? 'Home day' : fmt(spent);
+  big.classList.toggle('over', dayBudget > 0 && spent > dayBudget);
+  let sub = '', pct = 0;
+  if (spent <= 0 && homeDays.includes(td)) sub = 'Nothing spent today';
+  else if (dayBudget > 0) {
+    const left = dayBudget - spent;
+    sub = left >= 0 ? `${fmtShort(left)} left of ${fmtShort(dayBudget)}` : `${fmtShort(-left)} over ${fmtShort(dayBudget)}`;
+    pct = Math.min(100, spent / dayBudget * 100);
+  } else sub = 'No daily budget set (see Calendar or Insights)';
+  $('homeTodaySub').textContent = sub;
+  const bar = $('homeBar');
+  bar.style.width = pct + '%';
+  bar.className = 'bar-fill' + (dayBudget > 0 && spent > dayBudget ? ' over' : pct >= 80 ? ' warn' : '');
+
+  $('homeMonth').textContent = fmtShort(monthSpent);
+  $('homeNet').textContent = (net >= 0 ? '+' : '-') + fmtShort(Math.abs(net));
+  $('homeNet').className = 'home-num ' + (net >= 0 ? 'positive' : 'negative');
+  $('homeCash').textContent = fmt(pettyCash);
+  $('homeCash').classList.toggle('negative', pettyCash < 0);
+  const steps = stepList(), done = (stepsDone[td] || []).filter(id => steps.some(s => s.id === id)).length;
+  $('homeSteps').textContent = done + '/' + steps.length;
+  updateLimitNote();
+  updateBackupBadge();
+}
+
+let _lastView = 'home';
+try { _lastView = localStorage.getItem('ledger:lastView') || 'home'; } catch (e) {}
+showView(_lastView);
+
+setDateline();
+loadData();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
